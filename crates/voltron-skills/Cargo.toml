@@ -1,0 +1,13 @@
+[package]
+name = "voltron-skills"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+voltron-core = { path = "../voltron-core" }
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tracing.workspace = true

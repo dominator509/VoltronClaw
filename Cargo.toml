@@ -1,0 +1,49 @@
+[workspace]
+members = [
+    "crates/voltron-core",
+    "crates/voltron-providers",
+    "crates/voltron-memory",
+    "crates/voltron-skills",
+    "crates/voltron-channels",
+    "crates/voltron-audit",
+    "crates/voltron-runtime",
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/dominator509/voltron-claw"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# Async traits
+async-trait = "0.1"
+
+# SQLite memory backend
+sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
+
+# LLM provider abstraction
+rig-core = "0.7"
+
+# OS keyring for API keys
+keyring = "2"
+
+[profile.release]
+opt-level = 3
+lto = true
