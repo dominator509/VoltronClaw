@@ -5,29 +5,30 @@
 
 ## [SYSTEM_STATE]
 ACTIVE_PHASE=PHASE_1
-ACTIVE_STEP=5.2_IMPLEMENT_VOLTRON_CORE
+ACTIVE_STEP=5.3_5.8_IMPLEMENT_ALL_TRAIT_CRATES
 BUILD_MODE=GREENFIELD
 BLOCKED=FALSE
 BLOCK_REASON=
 
 ## [ALFRED_ORCHESTRATOR]
-TASK=Implement voltron-core traits, error types, and data types per SPEC_ANCHOR.md §5.2
-DELEGATIONS=voltron-providers→IP_MAN, voltron-memory→IP_MAN, voltron-skills→IP_MAN, voltron-channels→IP_MAN, voltron-audit→IP_MAN, main.rs→IP_MAN
-AUDIT_ASSIGNMENT=DEZIRAY: all Phase 1 crates
-STATUS=STARTING
+TASK=COMPLETED: voltron-core traits, error, types (commit 482ee8a). Awaiting Ip Man crates before implementing voltron-runtime.
+DELEGATIONS=ALL_SIX_CRATES→IP_MAN: voltron-providers, voltron-memory, voltron-skills, voltron-channels, voltron-audit, main.rs
+AUDIT_ASSIGNMENT=DEZIRAY: audit voltron-core (commit 482ee8a — traits.rs, error.rs, types.rs, lib.rs)
+STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
-CURRENT_TASK=STANDBY — awaiting Alfred's voltron-core completion + delegation dispatch
-IMPLEMENTED_CRATES=
-NEXT_CRATE=
-STATUS=IDLE
+CURRENT_TASK=Implement voltron-providers: wrap rig-core behind LLMProvider trait. DeepSeek primary (env DEEPSEEK_API_KEY), OpenAI fallback.
+NEXT_CRATE=voltron-memory (InMemoryStore + SqliteStore)
+STATUS=DISPATCHED
 BLOCKERS=
+ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs
+RULES=cargo fmt + clippy clean before each commit. Conventional commits: feat(voltron-<name>): ...
 
 ## [DEZIRAY_AUDITOR]
-CURRENT_AUDIT=STANDBY
+CURRENT_AUDIT=voltron-core (commit 482ee8a): traits.rs, error.rs, types.rs, lib.rs
 AUDITED_CRATES=
 FINDINGS=
-STATUS=IDLE
+STATUS=DISPATCHED
 
 ## [ACK_MATRIX]
 ACK_IP_MAN=FALSE
