@@ -18,8 +18,8 @@ STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
 CURRENT_TASK=Implement voltron-memory: InMemoryStore + SqliteStore behind MemoryStore trait
-IMPLEMENTED_CRATES=voltron-providers
-NEXT_CRATE=voltron-skills (SkillExecutor)
+IMPLEMENTED_CRATES=voltron-providers, voltron-memory
+NEXT_CRATE=voltron-skills (LocalSkillExecutor)
 STATUS=DISPATCHED
 BLOCKERS=
 ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs
