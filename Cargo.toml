@@ -42,6 +42,9 @@ sqlx = { version = "0.8", features = ["runtime-tokio", "sqlite"] }
 # LLM provider abstraction
 rig-core = "0.7"
 
+# HTTP client for LLM providers
+reqwest = { version = "0.12", features = ["json"] }
+
 # OS keyring for API keys
 keyring = "2"
 
