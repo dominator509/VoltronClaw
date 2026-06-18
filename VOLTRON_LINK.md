@@ -17,12 +17,12 @@ AUDIT_ASSIGNMENT=DEZIRAY: audit voltron-core (commit 482ee8a — traits.rs, erro
 STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
-CURRENT_TASK=Implement src/main.rs: wire crate runners into Agent, run_loop, config
-IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills, voltron-channels, voltron-audit
-NEXT_CRATE=voltron-runtime (awaiting Alfred orchestrator)
-STATUS=DISPATCHED
+CURRENT_TASK=All 6 impl crates complete. Awaiting voltron-runtime from Alfred.
+IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills, voltron-channels, voltron-audit, src/main.rs
+NEXT_CRATE=voltron-runtime (Alfred)
+STATUS=DONE
 BLOCKERS=
-ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs
+ASSIGNMENTS_QUEUE=COMPLETE
 RULES=cargo fmt + clippy clean before each commit. Conventional commits: feat(voltron-<name>): ...
 
 ## [DEZIRAY_AUDITOR]
@@ -34,4 +34,4 @@ STATUS=DISPATCHED
 ## [ACK_MATRIX]
 ACK_IP_MAN=TRUE
 ACK_DEZIRAY=FALSE
-NEEDS_ALFRED=FALSE
+NEEDS_ALFRED=TRUE
