@@ -17,9 +17,9 @@ AUDIT_ASSIGNMENT=DEZIRAY: audit voltron-core (commit 482ee8a — traits.rs, erro
 STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
-CURRENT_TASK=Implement voltron-audit: InMemoryAuditSink + FileAuditSink behind AuditSink trait
+CURRENT_TASK=Implement src/main.rs: wire crate runners into Agent, run_loop, config
 IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills, voltron-channels, voltron-audit
-NEXT_CRATE=src/main.rs (CLI + Agent setup)
+NEXT_CRATE=voltron-runtime (awaiting Alfred orchestrator)
 STATUS=DISPATCHED
 BLOCKERS=
 ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs

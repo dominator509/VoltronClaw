@@ -205,6 +205,12 @@ impl DeepSeekProvider {
             base_url: "https://api.deepseek.com".to_string(),
         }
     }
+
+    /// Override the model name.
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = model.to_string();
+        self
+    }
 }
 
 #[async_trait]
@@ -283,6 +289,12 @@ impl OpenAIProvider {
             model: model.unwrap_or_else(|| GPT_4O_MINI.to_string()),
             base_url: "https://api.openai.com/v1".to_string(),
         }
+    }
+
+    /// Override the model name.
+    pub fn with_model(mut self, model: &str) -> Self {
+        self.model = model.to_string();
+        self
     }
 }
 
