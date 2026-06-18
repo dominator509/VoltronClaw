@@ -17,8 +17,9 @@ AUDIT_ASSIGNMENT=DEZIRAY: audit voltron-core (commit 482ee8a — traits.rs, erro
 STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
-CURRENT_TASK=Implement voltron-providers: wrap rig-core behind LLMProvider trait. DeepSeek primary (env DEEPSEEK_API_KEY), OpenAI fallback.
-NEXT_CRATE=voltron-memory (InMemoryStore + SqliteStore)
+CURRENT_TASK=Implement voltron-memory: InMemoryStore + SqliteStore behind MemoryStore trait
+IMPLEMENTED_CRATES=voltron-providers
+NEXT_CRATE=voltron-skills (SkillExecutor)
 STATUS=DISPATCHED
 BLOCKERS=
 ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs
@@ -31,6 +32,6 @@ FINDINGS=
 STATUS=DISPATCHED
 
 ## [ACK_MATRIX]
-ACK_IP_MAN=FALSE
+ACK_IP_MAN=TRUE
 ACK_DEZIRAY=FALSE
 NEEDS_ALFRED=FALSE
