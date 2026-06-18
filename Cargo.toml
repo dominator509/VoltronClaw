@@ -45,6 +45,10 @@ rig-core = "0.7"
 # HTTP client for LLM providers
 reqwest = { version = "0.12", features = ["json"] }
 
+# Date/time handling
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.9"
+
 # OS keyring for API keys
 keyring = "2"
 
