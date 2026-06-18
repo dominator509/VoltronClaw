@@ -18,8 +18,8 @@ STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
 CURRENT_TASK=Implement voltron-audit: InMemoryAuditSink + FileAuditSink behind AuditSink trait
-IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills, voltron-channels
-NEXT_CRATE=voltron-audit (InMemoryAuditSink + FileAuditSink)
+IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills, voltron-channels, voltron-audit
+NEXT_CRATE=src/main.rs (CLI + Agent setup)
 STATUS=DISPATCHED
 BLOCKERS=
 ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs

@@ -1,3 +1,26 @@
+[package]
+name = "voltron-claw"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Voltron Claw — Rust-native composite agent"
+
+[dependencies]
+voltron-core = { path = "crates/voltron-core" }
+voltron-providers = { path = "crates/voltron-providers" }
+voltron-memory = { path = "crates/voltron-memory" }
+voltron-skills = { path = "crates/voltron-skills" }
+voltron-channels = { path = "crates/voltron-channels" }
+voltron-audit = { path = "crates/voltron-audit" }
+voltron-runtime = { path = "crates/voltron-runtime" }
+
+clap.workspace = true
+toml.workspace = true
+serde.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tokio.workspace = true
+
 [workspace]
 members = [
     "crates/voltron-core",
@@ -52,6 +75,12 @@ reqwest = { version = "0.12", features = ["json"] }
 # Date/time handling
 chrono = { version = "0.4", features = ["serde"] }
 chrono-tz = "0.9"
+
+# CLI argument parsing
+clap = { version = "4", features = ["derive"] }
+
+# TOML config parsing
+toml = "0.8"
 
 # OS keyring for API keys
 keyring = "2"
