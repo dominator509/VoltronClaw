@@ -5,20 +5,20 @@ all-features = false
 allow = [
     "MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause",
     "ISC", "Zlib", "MPL-2.0", "Unlicense", "CC0-1.0",
+    "Unicode-3.0",
 ]
 confidence-threshold = 0.93
 
 [bans]
 multiple-versions = "warn"
-denylist = []
+deny = []
 
 [advisories]
-db-path = "~/.cargo/advisory-db"
-db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "warn"
-yanked = "deny"
-notice = "warn"
+ignore = [
+    "RUSTSEC-2024-0388",  # derivative (transitive via keyring → zbus)
+    "RUSTSEC-2024-0384",  # instant (transitive via keyring → futures-lite)
+    "RUSTSEC-2025-0134",  # rustls-pemfile (transitive via rig-core → reqwest)
+]
 
 [sources]
 unknown-registry = "deny"
