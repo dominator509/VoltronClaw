@@ -17,9 +17,9 @@ AUDIT_ASSIGNMENT=DEZIRAY: audit voltron-core (commit 482ee8a — traits.rs, erro
 STATUS=AWAITING_AGENTS
 
 ## [IP_MAN_CODER]
-CURRENT_TASK=Implement voltron-memory: InMemoryStore + SqliteStore behind MemoryStore trait
-IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills
-NEXT_CRATE=voltron-channels (CliChannel)
+CURRENT_TASK=Implement voltron-audit: InMemoryAuditSink + FileAuditSink behind AuditSink trait
+IMPLEMENTED_CRATES=voltron-providers, voltron-memory, voltron-skills, voltron-channels
+NEXT_CRATE=voltron-audit (InMemoryAuditSink + FileAuditSink)
 STATUS=DISPATCHED
 BLOCKERS=
 ASSIGNMENTS_QUEUE=voltron-providers→voltron-memory→voltron-skills→voltron-channels→voltron-audit→src/main.rs
