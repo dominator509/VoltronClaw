@@ -12,6 +12,7 @@ voltron-skills = { path = "../voltron-skills" }
 voltron-channels = { path = "../voltron-channels" }
 voltron-audit = { path = "../voltron-audit" }
 tokio.workspace = true
+tokio-stream.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true

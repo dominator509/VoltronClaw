@@ -55,8 +55,8 @@ use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
 use voltron_core::{
-    AuditEntry, AuditSink, ChannelAdapter, LLMProvider, LLMResponse, MemoryRecord, MemoryStore,
-    Message, SkillExecutor, ToolCall, ToolDefinition, VoltronError,
+    AuditEntry, AuditSink, ChannelAdapter, LLMProvider, MemoryRecord, MemoryStore, Message,
+    SkillExecutor, ToolDefinition, VoltronError,
 };
 
 // ── AgentConfig ────────────────────────────────────────────────────
@@ -298,7 +298,7 @@ impl AgentRuntime {
     /// [`process_message`], and sends the response back. Exits when the channel
     /// closes or `max_turns` is reached.
     pub async fn run_loop(&self) {
-        use futures::StreamExt;
+        use tokio_stream::StreamExt;
 
         info!(max_turns = self.config.max_turns, "Entering agent run loop");
 
@@ -404,14 +404,20 @@ impl AgentRuntime {
     // ── Internal helpers ────────────────────────────────────────
 
     fn log_audit(&self, turn_id: &str, event: &str, payload: serde_json::Value) {
+        let mut payload_obj = match payload {
+            serde_json::Value::Object(m) => m,
+            _ => serde_json::Map::new(),
+        };
+        payload_obj.insert(
+            "turn_id".to_string(),
+            serde_json::Value::String(turn_id.to_string()),
+        );
+
         let entry = AuditEntry {
             id: uuid_v4(),
             timestamp: iso_now(),
             event: format!("runtime.{event}"),
-            payload: serde_json::json!({
-                "turn_id": turn_id,
-                ..payload.as_object().cloned().unwrap_or_default(),
-            }),
+            payload: serde_json::Value::Object(payload_obj),
         };
         if let Err(e) = self.audit.append(entry) {
             warn!("Failed to write audit entry: {e}");
@@ -426,6 +432,7 @@ impl AgentRuntime {
 /// All fields are required — call every setter before [`build`].
 /// Panics at build time if a required component is missing (no `Option` —
 /// the type system enforces presence via the builder pattern).
+#[derive(Default)]
 pub struct AgentRuntimeBuilder {
     provider: Option<Arc<dyn LLMProvider>>,
     memory: Option<Arc<dyn MemoryStore>>,
@@ -433,19 +440,6 @@ pub struct AgentRuntimeBuilder {
     channel: Option<Arc<dyn ChannelAdapter>>,
     audit: Option<Arc<dyn AuditSink>>,
     config: Option<AgentConfig>,
-}
-
-impl Default for AgentRuntimeBuilder {
-    fn default() -> Self {
-        Self {
-            provider: None,
-            memory: None,
-            skills: None,
-            channel: None,
-            audit: None,
-            config: None,
-        }
-    }
 }
 
 macro_rules! builder_setter {
@@ -595,6 +589,7 @@ mod tests {
     use super::*;
     use voltron_audit::InMemoryAuditSink;
     use voltron_channels::CliChannel;
+    use voltron_core::{LLMResponse, ToolCall};
     use voltron_memory::InMemoryStore;
     use voltron_skills::LocalSkillExecutor;
 

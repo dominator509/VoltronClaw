@@ -28,6 +28,6 @@ AUDITED_CRATES=voltron-core, voltron-providers, voltron-memory, voltron-skills, 
 STATUS=STANDBY
 
 ## [ACK_MATRIX]
-ACK_IP_MAN=FALSE
+ACK_IP_MAN=TRUE
 ACK_DEZIRAY=FALSE
 NEEDS_ALFRED=TRUE

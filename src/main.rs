@@ -1,4 +1,4 @@
- // Voltron Claw — composite agent binary
+// Voltron Claw — composite agent binary
 // License: Apache-2.0
 //
 // Wires all Phase 1 crates together through the AgentRuntime and
@@ -84,7 +84,7 @@ async fn main() {
         .as_ref()
         .and_then(|c| c.provider.clone())
         .unwrap_or(cli.provider);
-    let model_override = cli
+    let _model_override = cli
         .model
         .clone()
         .or_else(|| cfg.as_ref().and_then(|c| c.model.clone()));
@@ -197,102 +197,4 @@ async fn main() {
 
     // ── Run ─────────────────────────────────────────────────────
     runtime.run_loop().await;
-}
-
-// ── Helpers ───────────────────────────────────────────────────────
-
-#[allow(clippy::unnecessary_cast)]
-fn uuid_v4() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let a = now.as_secs();
-    let b = now.subsec_nanos() as u64;
-    let c = a.wrapping_mul(b).wrapping_add(0xdeadbeef);
-    let d = b.wrapping_mul(0x9e3779b9).wrapping_add(a);
-    format!(
-        "{:08x}-{:04x}-4{:03x}-{:04x}-{:012x}",
-        (a as u32) ^ (c as u32),
-        (b as u16) ^ (d as u16),
-        ((c >> 20) as u16) & 0x0fff,
-        0x8000u16 | ((d >> 8) as u16 & 0x0fff),
-        (c ^ d) & 0xffff_ffff_ffff,
-    )
-}
-
-/// Return the current UTC time as an ISO-8601 string.
-fn iso_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = now.as_secs();
-    let days = secs / 86400;
-    let time_secs = secs % 86400;
-    let hours = time_secs / 3600;
-    let minutes = (time_secs % 3600) / 60;
-    let seconds = time_secs % 60;
-
-    let mut y = 1970i64;
-    let mut remaining = days as i64;
-    loop {
-        let days_in_year = if is_leap(y) { 366 } else { 365 };
-        if remaining < days_in_year {
-            break;
-        }
-        remaining -= days_in_year;
-        y += 1;
-    }
-    let month_days = if is_leap(y) {
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
-    let mut m = 0usize;
-    for (i, &md) in month_days.iter().enumerate() {
-        if remaining < md as i64 {
-            m = i + 1;
-            break;
-        }
-        remaining -= md as i64;
-    }
-    if m == 0 {
-        m = 12;
-    }
-    let d = (remaining + 1) as u8;
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        y, m, d, hours, minutes, seconds
-    )
-}
-
-fn is_leap(year: i64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_iso_now_format() {
-        let s = iso_now();
-        assert!(s.len() >= 20, "ISO string too short: {s}");
-        assert!(s.ends_with('Z'), "Should end with Z: {s}");
-    }
-
-    #[test]
-    fn test_uuid_format() {
-        let id = uuid_v4();
-        assert_eq!(id.len(), 36, "UUID should be 36 chars: {id}");
-    }
-
-    #[test]
-    fn test_is_leap() {
-        assert!(is_leap(2000));
-        assert!(!is_leap(1900));
-        assert!(is_leap(2024));
-        assert!(!is_leap(2023));
-    }
 }
