@@ -55,8 +55,8 @@ use std::sync::Arc;
 use tracing::{debug, error, info, warn};
 
 use voltron_core::{
-    AuditEntry, AuditSink, ChannelAdapter, LLMProvider, MemoryRecord, MemoryStore, Message,
-    SkillExecutor, ToolDefinition, VoltronError,
+    AuditEntry, AuditSink, ChannelAdapter, LLMProvider, ManifestVerifier, MemoryRecord,
+    MemoryStore, Message, SkillExecutor, ToolDefinition, VoltronError,
 };
 
 // ── AgentConfig ────────────────────────────────────────────────────
@@ -74,8 +74,11 @@ pub struct AgentConfig {
 
     /// Maximum number of tool-calling iterations per user turn.
     ///
-    /// Prevents infinite tool-calling loops. When exceeded, the runtime returns
-    /// the most recent text content (or an error if none was produced).
+    /// Prevents infinite tool-calling loops. When the limit is reached, any
+    /// tool results from the final iteration are silently discarded (they
+    /// were never appended to the message list) and the runtime returns the
+    /// most recent text content if available, or a fallback message
+    /// indicating a transient issue.
     ///
     /// Default: 10
     pub max_tool_iterations: usize,
@@ -111,6 +114,12 @@ pub struct AgentRuntime {
     channel: Arc<dyn ChannelAdapter>,
     audit: Arc<dyn AuditSink>,
     config: AgentConfig,
+    /// Optional capability-manifest verifier.
+    ///
+    /// When set, every tool dispatch is gated by a call to
+    /// `verify_manifest()`. Unsigned or invalid manifests cause the
+    /// tool to be rejected with a [`VerificationError`].
+    manifest_verifier: Option<Arc<dyn ManifestVerifier>>,
 }
 
 impl AgentRuntime {
@@ -210,6 +219,41 @@ impl AgentRuntime {
                     tool_call_id = %tc.id,
                     "Executing tool",
                 );
+
+                // ── IronClaw capability-manifest gate ─────────────
+                if let Some(verifier) = &self.manifest_verifier {
+                    // If the verifier's lookup returns an error, the skill is not
+                    // authorised to execute. Reject it before calling execute().
+                    if let Err(verification_error) = verifier.verify_skill_by_name(&tc.function_name)
+                    {
+                        warn!(
+                            turn_id = %turn_id,
+                            tool = %tc.function_name,
+                            error = %verification_error,
+                            "Skill rejected by IronClaw manifest verifier",
+                        );
+
+                        self.log_audit(
+                            &turn_id,
+                            "ironclaw.rejected",
+                            serde_json::json!({
+                                "tool_call_id": tc.id,
+                                "function_name": tc.function_name,
+                                "error": verification_error.to_string(),
+                            }),
+                        );
+
+                        // Push an error tool result so the LLM knows the tool was rejected
+                        messages.push(Message {
+                            role: "tool".into(),
+                            content: format!("{{\"error\": \"IronClaw rejected: {}\"}}", verification_error),
+                            name: Some(tc.function_name.clone()),
+                            tool_call_id: Some(tc.id.clone()),
+                            tool_calls: vec![],
+                        });
+                        continue;
+                    }
+                }
 
                 let skill_result = self
                     .skills
@@ -440,6 +484,7 @@ pub struct AgentRuntimeBuilder {
     channel: Option<Arc<dyn ChannelAdapter>>,
     audit: Option<Arc<dyn AuditSink>>,
     config: Option<AgentConfig>,
+    manifest_verifier: Option<Arc<dyn ManifestVerifier>>,
 }
 
 macro_rules! builder_setter {
@@ -479,6 +524,11 @@ impl AgentRuntimeBuilder {
         AgentConfig,
         "Set the agent configuration (required)."
     );
+    builder_setter!(
+        manifest_verifier,
+        Arc<dyn ManifestVerifier>,
+        "Set the optional IronClaw capability-manifest verifier."
+    );
 
     /// Build the [`AgentRuntime`].
     ///
@@ -493,6 +543,7 @@ impl AgentRuntimeBuilder {
             channel: self.channel.expect("channel is required"),
             audit: self.audit.expect("audit is required"),
             config: self.config.unwrap_or_default(),
+            manifest_verifier: self.manifest_verifier,
         }
     }
 }
@@ -515,71 +566,11 @@ fn preview(s: &str, max_chars: usize) -> String {
 }
 
 fn uuid_v4() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let a = now.as_secs();
-    let b = now.subsec_nanos() as u64;
-    let c = a.wrapping_mul(b).wrapping_add(0xdeadbeef);
-    let d = b.wrapping_mul(0x9e3779b9).wrapping_add(a);
-    format!(
-        "{:08x}-{:04x}-4{:03x}-{:04x}-{:012x}",
-        (a as u32) ^ (c as u32),
-        (b as u16) ^ (d as u16),
-        ((c >> 20) as u16) & 0x0fff,
-        0x8000u16 | ((d >> 8) as u16 & 0x0fff),
-        (c ^ d) & 0xffff_ffff_ffff,
-    )
+    uuid::Uuid::new_v4().to_string()
 }
 
 fn iso_now() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default();
-    let secs = now.as_secs();
-    let days = secs / 86400;
-    let time_secs = secs % 86400;
-    let hours = time_secs / 3600;
-    let minutes = (time_secs % 3600) / 60;
-    let seconds = time_secs % 60;
-
-    let mut y: i64 = 1970;
-    let mut remaining = days as i64;
-    loop {
-        let days_in_year = if is_leap(y) { 366 } else { 365 };
-        if remaining < days_in_year {
-            break;
-        }
-        remaining -= days_in_year;
-        y += 1;
-    }
-    let month_days = if is_leap(y) {
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    } else {
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-    };
-    let mut m: usize = 0;
-    for (i, &md) in month_days.iter().enumerate() {
-        if remaining < md as i64 {
-            m = i + 1;
-            break;
-        }
-        remaining -= md as i64;
-    }
-    if m == 0 {
-        m = 12;
-    }
-    let d = (remaining + 1) as u8;
-    format!(
-        "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
-        y, m, d, hours, minutes, seconds
-    )
-}
-
-fn is_leap(year: i64) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+    chrono::Utc::now().to_rfc3339()
 }
 
 // ── Tests ─────────────────────────────────────────────────────────
@@ -774,6 +765,56 @@ mod tests {
             events.iter().any(|&e| e == "runtime.turn.end"),
             "Missing turn.end"
         );
+    }
+
+    // ── run_loop integration tests ──────────────────────────────
+
+    #[tokio::test]
+    async fn test_run_loop_single_turn() {
+        let (writer, reader) = tokio::io::duplex(1024);
+        let (write_tx, mut read_rx) = tokio::io::duplex(1024);
+        let channel = Arc::new(CliChannel::with_io(
+            tokio::io::BufReader::new(reader),
+            write_tx,
+        ));
+
+        let rt = Arc::new(
+            AgentRuntime::builder()
+                .provider(Arc::new(MockProvider {
+                    response: "Hello from run_loop!".into(),
+                }))
+                .memory(Arc::new(InMemoryStore::new()))
+                .skills(Arc::new(LocalSkillExecutor::with_defaults()))
+                .channel(channel)
+                .audit(Arc::new(InMemoryAuditSink::new()))
+                .config(AgentConfig {
+                    max_turns: 1,
+                    ..AgentConfig::default()
+                })
+                .build(),
+        );
+
+        // Write a user message, then close writer so run_loop doesn't hang
+        use tokio::io::AsyncWriteExt;
+        let mut writer = writer;
+        writer.write_all(b"Hello\n").await.unwrap();
+        drop(writer);
+
+        // Run the loop
+        rt.run_loop().await;
+
+        // Read the response
+        use tokio::io::AsyncReadExt;
+        let mut buf = [0u8; 1024];
+        let n = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            read_rx.read(&mut buf),
+        )
+        .await
+        .expect("read timed out")
+        .expect("read failed");
+        let output = String::from_utf8_lossy(&buf[..n]);
+        assert!(output.contains("Hello from run_loop!"), "got: {output}");
     }
 
     // ── Memory helpers ──────────────────────────────────────────

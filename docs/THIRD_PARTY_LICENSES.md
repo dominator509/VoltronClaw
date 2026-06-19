@@ -8,7 +8,20 @@
 
 ## Registry
 
-*No third-party components have been ingested as of Phase 0.*
+### Moltis
+
+- **Source repository:** https://github.com/moltis-org/moltis
+- **Commit hash borrowed from:** `48c9a41926d095173654030a4a87baf236792b19`
+- **Retrieval date:** 2026-06-19
+- **License:** MIT
+- **License file path in our repo:** /third_party/moltis/LICENSE
+- **Files containing borrowed code:** TBD — adapter crate in /crates/voltron-moltis-adapter/
+- **Borrowed scope:** full module (agent runtime)
+- **Modifications made:** None — pinned commit, no local changes
+- **Attribution location:** NOTICE file at distribution root
+- **Patent grant (if Apache-2.0):** N/A (MIT)
+- **Audit PR:** awaiting merge
+- **Auditor:** Deziray (license audit), Ip Man (placement)
 
 ---
 

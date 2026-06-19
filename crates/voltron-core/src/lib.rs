@@ -13,6 +13,7 @@
 pub mod error;
 pub mod traits;
 pub mod types;
+pub mod verification;
 
 // Re-export everything so downstream crates can write
 // `use voltron_core::*;` or `use voltron_core::traits::*;`.
@@ -21,4 +22,7 @@ pub use traits::{AuditSink, ChannelAdapter, LLMProvider, MemoryStore, SkillExecu
 pub use types::{
     AuditEntry, LLMResponse, MemoryRecord, Message, SkillManifest, SkillResult, ToolCall,
     ToolDefinition,
+};
+pub use verification::{
+    CapabilityManifest, ManifestVerifier, SignedManifest, VerificationError,
 };

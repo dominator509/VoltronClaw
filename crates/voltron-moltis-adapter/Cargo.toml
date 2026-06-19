@@ -1,23 +1,25 @@
 [package]
-name = "voltron-runtime"
+name = "voltron-moltis-adapter"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+description = "Moltis agent runtime adapter — wraps klodi-moltis messaging behind voltron-core traits"
 
 [dependencies]
 voltron-core = { path = "../voltron-core" }
-voltron-providers = { path = "../voltron-providers" }
-voltron-memory = { path = "../voltron-memory" }
-voltron-skills = { path = "../voltron-skills" }
-voltron-channels = { path = "../voltron-channels" }
-voltron-audit = { path = "../voltron-audit" }
 tokio.workspace = true
 tokio-stream.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
-anyhow.workspace = true
+futures.workspace = true
 tracing.workspace = true
-tracing-subscriber.workspace = true
+thiserror.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+
+# NATS client for Moltis messaging
+async-nats = "0.47"
+
+# Moltis / klodi marketplace agent runtime
+klodi-moltis = "0.3"

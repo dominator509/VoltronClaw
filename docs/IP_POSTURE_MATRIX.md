@@ -12,5 +12,6 @@
 | voltron-channels | Apache-2.0 | Original | N/A | Low | No | No |
 | voltron-audit | Apache-2.0 | Original | N/A | Low | No | No |
 | voltron-runtime | Apache-2.0 | Original | N/A | Low | No | No |
+| Moltis | MIT | Borrowed | ✅ | Low | No | No |
 
 *Future borrowed components (Phase 2+) will be added with full license audit data.*

@@ -12,7 +12,7 @@ use tracing_subscriber::EnvFilter;
 
 use voltron_audit::{FileAuditSink, InMemoryAuditSink};
 use voltron_channels::CliChannel;
-use voltron_core::{AuditSink, LLMProvider, MemoryStore, SkillExecutor};
+use voltron_core::{AuditSink, LLMProvider, ManifestVerifier, MemoryStore, SkillExecutor, VoltronError};
 use voltron_memory::{InMemoryStore, SqliteStore};
 use voltron_providers::{DeepSeekProvider, OpenAIProvider};
 use voltron_runtime::{AgentConfig, AgentRuntime};
@@ -47,6 +47,11 @@ struct Cli {
     /// Maximum number of conversation turns before exit (0 = unlimited).
     #[arg(short = 'n', long, default_value_t = 0)]
     max_turns: u32,
+
+    /// Path to directory containing signed skill manifests (`.ironclaw` files).
+    /// When set, IronClaw capability-manifest verification is enabled.
+    #[arg(long)]
+    ironclaw_manifest_dir: Option<PathBuf>,
 }
 
 // ─── Config file (optional TOML) ──────────────────────────────────
@@ -63,6 +68,51 @@ struct Config {
 fn load_config(path: &PathBuf) -> Option<Config> {
     let content = std::fs::read_to_string(path).ok()?;
     toml::from_str(&content).ok()
+}
+
+/// Load signed manifests from a directory and construct an
+/// [`IronclawManifestVerifier`].
+///
+/// Each file in the directory is read and deserialised as a
+/// [`SignedManifest`]. The verifier is pre-populated with all
+/// successfully loaded manifests.
+fn load_ironclaw_manifests(
+    dir: &PathBuf,
+) -> Result<voltron_ironclaw_adapter::IronclawManifestVerifier, Box<dyn std::error::Error>> {
+    use voltron_core::SignedManifest;
+    use voltron_ironclaw_adapter::{IronclawManifestVerifier, ManifestRegistry, RevocationRegistry};
+
+    let manifest_registry = ManifestRegistry::new();
+    let revocation_registry = RevocationRegistry::new();
+    let mut verifier = IronclawManifestVerifier::new(manifest_registry, revocation_registry);
+
+    if !dir.exists() {
+        return Err(format!("IronClaw manifest directory does not exist: {:?}", dir).into());
+    }
+
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            let content = std::fs::read_to_string(&path)?;
+            let signed: SignedManifest = serde_json::from_str(&content)?;
+
+            let skill_name = signed.manifest.skill_name.clone();
+            let version = signed.manifest.version.clone();
+
+            // register_signed stores the signed manifest AND makes the
+            // capability manifest available for hash/permission checks
+            verifier.register_signed(signed);
+
+            tracing::info!(
+                "Loaded IronClaw manifest: {} (v{})",
+                skill_name,
+                version,
+            );
+        }
+    }
+
+    Ok(verifier)
 }
 
 // ─── Entry point ──────────────────────────────────────────────────
@@ -84,7 +134,7 @@ async fn main() {
         .as_ref()
         .and_then(|c| c.provider.clone())
         .unwrap_or(cli.provider);
-    let _model_override = cli
+    let model_override = cli
         .model
         .clone()
         .or_else(|| cfg.as_ref().and_then(|c| c.model.clone()));
@@ -92,8 +142,11 @@ async fn main() {
     // ── Construct LLM provider ─────────────────────────────────
     let llm_provider: Arc<dyn LLMProvider> = match provider_name.as_str() {
         "openai" => {
-            let p = match OpenAIProvider::from_env() {
-                Ok(provider) => provider,
+            let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| {
+                VoltronError::Config("OPENAI_API_KEY environment variable is not set".into())
+            });
+            let p = match api_key {
+                Ok(key) => OpenAIProvider::new(&key, model_override.clone()),
                 Err(e) => {
                     tracing::error!("{e}");
                     eprintln!("OPENAI_API_KEY env var required for OpenAI provider");
@@ -103,8 +156,11 @@ async fn main() {
             Arc::new(p)
         }
         _ => {
-            let p = match DeepSeekProvider::from_env() {
-                Ok(provider) => provider,
+            let api_key = std::env::var("DEEPSEEK_API_KEY").map_err(|_| {
+                VoltronError::Config("DEEPSEEK_API_KEY environment variable is not set".into())
+            });
+            let p = match api_key {
+                Ok(key) => DeepSeekProvider::new(&key, model_override.clone()),
                 Err(e) => {
                     tracing::error!("{e}");
                     eprintln!("DEEPSEEK_API_KEY env var required for DeepSeek provider");
@@ -179,8 +235,30 @@ async fn main() {
         .and_then(|c| c.max_turns)
         .unwrap_or(cli.max_turns);
 
+    // ── IronClaw capability-manifest verifier ───────────────────
+    let manifest_verifier: Option<Arc<dyn ManifestVerifier>> =
+        if let Some(dir) = &cli.ironclaw_manifest_dir {
+            match load_ironclaw_manifests(dir) {
+                Ok(verifier) => {
+                    let v: Arc<dyn ManifestVerifier> = Arc::new(verifier);
+                    tracing::info!(
+                        "IronClaw manifest verifier enabled — {:?}",
+                        dir
+                    );
+                    Some(v)
+                }
+                Err(e) => {
+                    tracing::error!("Failed to load IronClaw manifests: {e}");
+                    std::process::exit(1);
+                }
+            }
+        } else {
+            tracing::info!("IronClaw manifest verifier disabled (no --ironclaw-manifest-dir)");
+            None
+        };
+
     // ── Build AgentRuntime ──────────────────────────────────────
-    let runtime = AgentRuntime::builder()
+    let mut runtime_builder = AgentRuntime::builder()
         .provider(llm_provider)
         .memory(memory)
         .skills(skills)
@@ -189,8 +267,13 @@ async fn main() {
         .config(AgentConfig {
             max_turns,
             ..AgentConfig::default()
-        })
-        .build();
+        });
+
+    if let Some(verifier) = manifest_verifier {
+        runtime_builder = runtime_builder.manifest_verifier(verifier);
+    }
+
+    let runtime = runtime_builder.build();
 
     tracing::info!("Voltron Claw v{} starting", env!("CARGO_PKG_VERSION"));
     tracing::info!("Entering interactive mode. Type Ctrl+C to exit.");
