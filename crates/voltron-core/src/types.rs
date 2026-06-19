@@ -15,6 +15,9 @@ pub struct Message {
     /// Tool calls embedded in an assistant message
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_calls: Vec<ToolCall>,
+    /// Provider-assigned tool call ID (required for tool-role messages)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 impl Message {
@@ -23,6 +26,7 @@ impl Message {
             role: "system".into(),
             content: content.into(),
             name: None,
+            tool_call_id: None,
             tool_calls: vec![],
         }
     }
@@ -32,6 +36,7 @@ impl Message {
             role: "user".into(),
             content: content.into(),
             name: None,
+            tool_call_id: None,
             tool_calls: vec![],
         }
     }
@@ -41,20 +46,19 @@ impl Message {
             role: "assistant".into(),
             content: content.into(),
             name: None,
+            tool_call_id: None,
             tool_calls: vec![],
         }
     }
 
-    pub fn tool(_tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
+    pub fn tool(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
         Self {
             role: "tool".into(),
             content: content.into(),
             name: None,
+            tool_call_id: Some(tool_call_id.into()),
             tool_calls: vec![],
         }
-        // Note: tool_call_id is tracked via ToolCall, not on Message itself
-        // To associate a tool response, include the id in content or use
-        // provider-specific metadata. This is intentionally minimal.
     }
 }
 
@@ -173,6 +177,11 @@ mod tests {
 
         let asst = Message::assistant("Hi there");
         assert_eq!(asst.role, "assistant");
+
+        let tool = Message::tool("call_abc123", "Result: 42");
+        assert_eq!(tool.role, "tool");
+        assert_eq!(tool.content, "Result: 42");
+        assert_eq!(tool.tool_call_id.as_deref(), Some("call_abc123"));
     }
 
     #[test]

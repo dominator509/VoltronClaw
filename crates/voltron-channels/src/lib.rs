@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use futures::stream::Stream;
 use std::sync::Arc;
 use tokio::io::AsyncBufReadExt;
+use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 use voltron_core::{ChannelAdapter, Message, VoltronError};
 
@@ -18,6 +19,8 @@ pub struct CliChannel {
     /// can extract it under `&self`.
     rx: Arc<tokio::sync::Mutex<Option<mpsc::Receiver<Message>>>>,
     _handle: tokio::task::JoinHandle<()>,
+    /// Shared writer for outgoing messages. Mutex-protected for &self access.
+    writer: Arc<tokio::sync::Mutex<Box<dyn tokio::io::AsyncWrite + Send + Unpin>>>,
 }
 
 impl CliChannel {
@@ -36,7 +39,7 @@ impl CliChannel {
     ///
     /// `reader` should be an async reader yielding lines. `writer` receives
     /// serialized messages.
-    pub fn with_io<R, W>(reader: R, _writer: W) -> Self
+    pub fn with_io<R, W>(reader: R, writer: W) -> Self
     where
         R: tokio::io::AsyncBufRead + Unpin + Send + 'static,
         W: tokio::io::AsyncWrite + Send + Unpin + 'static,
@@ -56,6 +59,7 @@ impl CliChannel {
                         role: "user".into(),
                         content: val.to_string(),
                         name: None,
+                        tool_call_id: None,
                         tool_calls: vec![],
                     }
                 } else {
@@ -71,6 +75,7 @@ impl CliChannel {
         Self {
             rx: Arc::new(tokio::sync::Mutex::new(Some(rx))),
             _handle: handle,
+            writer: Arc::new(tokio::sync::Mutex::new(Box::new(writer))),
         }
     }
 }
@@ -98,8 +103,15 @@ impl ChannelAdapter for CliChannel {
     async fn send(&self, message: Message) -> Result<(), VoltronError> {
         let json = serde_json::to_string(&message)
             .map_err(|e| VoltronError::Serialization(e.to_string()))?;
-        // Use println! which writes to stdout with a newline
-        println!("{json}");
+        let mut writer = self.writer.lock().await;
+        writer
+            .write_all(json.as_bytes())
+            .await
+            .map_err(|e| VoltronError::ChannelIO(e.to_string()))?;
+        writer
+            .write_all(b"\n")
+            .await
+            .map_err(|e| VoltronError::ChannelIO(e.to_string()))?;
         Ok(())
     }
 }
@@ -185,11 +197,27 @@ mod tests {
 
     #[tokio::test]
     async fn test_send_message() {
-        let (channel, _writer) = make_duplex_channel();
+        let (reader_writer, reader) = tokio::io::duplex(1024);
+        let (chan_writer, mut chan_reader) = tokio::io::duplex(1024);
+        let channel = CliChannel::with_io(tokio::io::BufReader::new(reader), chan_writer);
 
-        // send() uses println! which goes to real stdout. We verify it doesn't error.
+        // Drop the writer side of the reader so the stdin task stops cleanly
+        drop(reader_writer);
+
         let msg = Message::assistant("Response from agent");
-        let result = channel.send(msg).await;
-        assert!(result.is_ok());
+        channel.send(msg).await.unwrap();
+
+        // Read a fixed buffer from the channel reader (don't wait for EOF)
+        use tokio::io::AsyncReadExt;
+        let mut buf = [0u8; 1024];
+        let n = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            chan_reader.read(&mut buf),
+        )
+        .await
+        .expect("read timed out")
+        .expect("read failed");
+        let output = String::from_utf8_lossy(&buf[..n]);
+        assert!(output.contains("Response from agent"), "got: {output}");
     }
 }

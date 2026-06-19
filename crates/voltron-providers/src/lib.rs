@@ -70,6 +70,8 @@ fn build_request_body(
     model: &str,
     messages: &[Message],
     tools: &[ToolDefinition],
+    temperature: Option<f64>,
+    max_tokens: Option<u64>,
 ) -> serde_json::Value {
     let msg_array: Vec<serde_json::Value> = messages
         .iter()
@@ -78,6 +80,10 @@ fn build_request_body(
                 "role": m.role,
                 "content": m.content,
             });
+            // Include tool_call_id for tool-role messages (required by OpenAI-compatible APIs)
+            if let Some(ref tcid) = m.tool_call_id {
+                obj["tool_call_id"] = serde_json::json!(tcid);
+            }
             if !m.tool_calls.is_empty() {
                 let calls: Vec<serde_json::Value> = m
                     .tool_calls
@@ -102,9 +108,13 @@ fn build_request_body(
     let mut body = serde_json::json!({
         "model": model,
         "messages": msg_array,
-        "temperature": 0.7,
-        "max_tokens": 4096,
     });
+    if let Some(temp) = temperature {
+        body["temperature"] = serde_json::json!(temp);
+    }
+    if let Some(mt) = max_tokens {
+        body["max_tokens"] = serde_json::json!(mt);
+    }
 
     if !tools.is_empty() {
         let tool_defs: Vec<serde_json::Value> = tools
@@ -185,6 +195,10 @@ pub struct DeepSeekProvider {
     api_key: String,
     model: String,
     base_url: String,
+    /// Optional temperature override (default: 0.7)
+    pub temperature: Option<f64>,
+    /// Optional max_tokens override (default: 4096)
+    pub max_tokens: Option<u64>,
 }
 
 impl DeepSeekProvider {
@@ -202,13 +216,27 @@ impl DeepSeekProvider {
             client: reqwest::Client::new(),
             api_key: api_key.to_string(),
             model: model.unwrap_or_else(|| DEEPSEEK_CHAT.to_string()),
-            base_url: "https://api.deepseek.com".to_string(),
+            base_url: "https://api.deepseek.com/v1".to_string(),
+            temperature: None,
+            max_tokens: None,
         }
     }
 
     /// Override the model name.
     pub fn with_model(mut self, model: &str) -> Self {
         self.model = model.to_string();
+        self
+    }
+
+    /// Override the generation temperature.
+    pub fn with_temperature(mut self, temperature: f64) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    /// Override the maximum output tokens.
+    pub fn with_max_tokens(mut self, max_tokens: u64) -> Self {
+        self.max_tokens = Some(max_tokens);
         self
     }
 }
@@ -220,7 +248,13 @@ impl LLMProvider for DeepSeekProvider {
         messages: &[Message],
         tools: &[ToolDefinition],
     ) -> Result<LLMResponse, VoltronError> {
-        let body = build_request_body(&self.model, messages, tools);
+        let body = build_request_body(
+            &self.model,
+            messages,
+            tools,
+            self.temperature,
+            self.max_tokens,
+        );
 
         let resp = self
             .client
@@ -270,6 +304,10 @@ pub struct OpenAIProvider {
     api_key: String,
     model: String,
     base_url: String,
+    /// Optional temperature override (default: 0.7)
+    pub temperature: Option<f64>,
+    /// Optional max_tokens override (default: 4096)
+    pub max_tokens: Option<u64>,
 }
 
 impl OpenAIProvider {
@@ -288,12 +326,26 @@ impl OpenAIProvider {
             api_key: api_key.to_string(),
             model: model.unwrap_or_else(|| GPT_4O_MINI.to_string()),
             base_url: "https://api.openai.com/v1".to_string(),
+            temperature: None,
+            max_tokens: None,
         }
     }
 
     /// Override the model name.
     pub fn with_model(mut self, model: &str) -> Self {
         self.model = model.to_string();
+        self
+    }
+
+    /// Override the generation temperature.
+    pub fn with_temperature(mut self, temperature: f64) -> Self {
+        self.temperature = Some(temperature);
+        self
+    }
+
+    /// Override the maximum output tokens.
+    pub fn with_max_tokens(mut self, max_tokens: u64) -> Self {
+        self.max_tokens = Some(max_tokens);
         self
     }
 }
@@ -305,7 +357,13 @@ impl LLMProvider for OpenAIProvider {
         messages: &[Message],
         tools: &[ToolDefinition],
     ) -> Result<LLMResponse, VoltronError> {
-        let body = build_request_body(&self.model, messages, tools);
+        let body = build_request_body(
+            &self.model,
+            messages,
+            tools,
+            self.temperature,
+            self.max_tokens,
+        );
 
         let resp = self
             .client
@@ -367,10 +425,13 @@ mod tests {
     #[test]
     fn test_build_request_body_no_tools() {
         let msgs = vec![Message::system("You are helpful."), Message::user("Hello")];
-        let body = build_request_body("test-model", &msgs, &[]);
+        let body = build_request_body("test-model", &msgs, &[], None, None);
         assert_eq!(body["model"], "test-model");
         assert_eq!(body["messages"].as_array().unwrap().len(), 2);
         assert!(body.get("tools").is_none());
+        // temperature and max_tokens should be absent when not provided
+        assert!(body.get("temperature").is_none());
+        assert!(body.get("max_tokens").is_none());
     }
 
     #[test]
@@ -381,7 +442,7 @@ mod tests {
             description: "Search the web".into(),
             parameters: serde_json::json!({"type": "object", "properties": {}}),
         }];
-        let body = build_request_body("test-model", &msgs, &tools);
+        let body = build_request_body("test-model", &msgs, &tools, None, None);
         assert_eq!(body["tools"].as_array().unwrap().len(), 1);
         assert_eq!(body["tools"][0]["function"]["name"], "search");
     }
@@ -392,13 +453,14 @@ mod tests {
             role: "assistant".into(),
             content: "".into(),
             name: None,
+            tool_call_id: None,
             tool_calls: vec![ToolCall {
                 id: "call_123".into(),
                 function_name: "search".into(),
                 arguments: serde_json::json!({"q": "test"}),
             }],
         }];
-        let body = build_request_body("test-model", &msgs, &[]);
+        let body = build_request_body("test-model", &msgs, &[], None, None);
         let calls = body["messages"][0]["tool_calls"].as_array().unwrap();
         assert_eq!(calls.len(), 1);
         assert_eq!(calls[0]["function"]["name"], "search");

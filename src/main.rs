@@ -1,8 +1,8 @@
-// Voltron Claw — composite agent binary
+ // Voltron Claw — composite agent binary
 // License: Apache-2.0
 //
-// Wires all Phase 1 crates together: LLM provider, memory, skills,
-// channel, and audit — then enters the agent run loop.
+// Wires all Phase 1 crates together through the AgentRuntime and
+// enters the agent run loop.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -12,11 +12,10 @@ use tracing_subscriber::EnvFilter;
 
 use voltron_audit::{FileAuditSink, InMemoryAuditSink};
 use voltron_channels::CliChannel;
-use voltron_core::{
-    AuditEntry, AuditSink, ChannelAdapter, LLMProvider, MemoryStore, Message, SkillExecutor,
-};
+use voltron_core::{AuditSink, LLMProvider, MemoryStore, SkillExecutor};
 use voltron_memory::{InMemoryStore, SqliteStore};
 use voltron_providers::{DeepSeekProvider, OpenAIProvider};
+use voltron_runtime::{AgentConfig, AgentRuntime};
 use voltron_skills::LocalSkillExecutor;
 
 // ── CLI ───────────────────────────────────────────────────────────
@@ -128,7 +127,7 @@ async fn main() {
         .map(|p| p.to_string_lossy().to_string())
         .or_else(|| cfg.as_ref().and_then(|c| c.database.clone()));
 
-    let _memory: Arc<dyn MemoryStore> = if let Some(path) = db_path {
+    let memory: Arc<dyn MemoryStore> = if let Some(path) = db_path {
         match SqliteStore::connect(&path).await {
             Ok(store) => Arc::new(store),
             Err(e) => {
@@ -174,89 +173,30 @@ async fn main() {
 
     tracing::info!("Audit sink initialised");
 
-    // ── Log startup audit entry ────────────────────────────────
-    let _ = audit.append(AuditEntry {
-        id: uuid_v4(),
-        timestamp: iso_now(),
-        event: "system.startup".into(),
-        payload: serde_json::json!({
-            "provider": llm_provider.provider_name(),
-            "agent_version": env!("CARGO_PKG_VERSION"),
-        }),
-    });
-
-    // ── Interactive run loop ───────────────────────────────────
-    let max_turns = model_override
+    // ── Resolve max_turns config ────────────────────────────────
+    let max_turns = cfg
         .as_ref()
-        .and_then(|_| {
-            if cli.max_turns > 0 {
-                Some(cli.max_turns)
-            } else {
-                cfg.as_ref().and_then(|c| c.max_turns)
-            }
-        })
-        .or({
-            if cli.max_turns > 0 {
-                Some(cli.max_turns)
-            } else {
-                cfg.as_ref().and_then(|c| c.max_turns)
-            }
-        })
-        .unwrap_or(0);
+        .and_then(|c| c.max_turns)
+        .unwrap_or(cli.max_turns);
 
-    if max_turns > 0 {
-        tracing::info!(max_turns, "Running in bounded-turn mode");
-    }
+    // ── Build AgentRuntime ──────────────────────────────────────
+    let runtime = AgentRuntime::builder()
+        .provider(llm_provider)
+        .memory(memory)
+        .skills(skills)
+        .channel(channel)
+        .audit(audit)
+        .config(AgentConfig {
+            max_turns,
+            ..AgentConfig::default()
+        })
+        .build();
 
     tracing::info!("Voltron Claw v{} starting", env!("CARGO_PKG_VERSION"));
     tracing::info!("Entering interactive mode. Type Ctrl+C to exit.");
 
-    use futures::StreamExt;
-
-    let mut stream = channel.recv().await;
-    let mut turn: u32 = 0;
-
-    loop {
-        if max_turns > 0 && turn >= max_turns {
-            tracing::info!("Reached max turns ({max_turns}), exiting");
-            break;
-        }
-
-        let msg = match stream.next().await {
-            Some(m) => m,
-            None => {
-                tracing::info!("Channel closed, exiting");
-                break;
-            }
-        };
-
-        turn += 1;
-        tracing::debug!(turn, role = %msg.role, "Received message");
-
-        match llm_provider.generate(std::slice::from_ref(&msg), &[]).await {
-            Ok(response) => {
-                let _ = channel.send(Message::assistant(response.content)).await;
-            }
-            Err(e) => {
-                tracing::error!("LLM call failed: {e}");
-                let _ = channel
-                    .send(Message::assistant(
-                        "I encountered an error processing your request.",
-                    ))
-                    .await;
-            }
-        }
-    }
-
-    // ── Log shutdown audit entry ───────────────────────────────
-    let _ = audit.append(AuditEntry {
-        id: uuid_v4(),
-        timestamp: iso_now(),
-        event: "system.shutdown".into(),
-        payload: serde_json::json!({"turns": turn}),
-    });
-
-    tracing::info!("Voltron Claw shutdown complete ({turn} turns handled)");
+    // ── Run ─────────────────────────────────────────────────────
+    runtime.run_loop().await;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────
