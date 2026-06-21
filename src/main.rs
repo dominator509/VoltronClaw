@@ -52,6 +52,12 @@ struct Cli {
     /// When set, IronClaw capability-manifest verification is enabled.
     #[arg(long)]
     ironclaw_manifest_dir: Option<PathBuf>,
+
+    /// Path to `KNOWN_ISSUES.md` for the Hermes self-improvement engine.
+    /// When set, the Hermes proposal feedback loop is enabled.
+    #[cfg(feature = "hermes")]
+    #[arg(long)]
+    hermes_known_issues: Option<PathBuf>,
 }
 
 // ─── Config file (optional TOML) ──────────────────────────────────
@@ -257,6 +263,20 @@ async fn main() {
             None
         };
 
+    // ── Hermes self-improvement engine ─────────────────────────
+    #[cfg(feature = "hermes")]
+    let hermes_engine: Option<Arc<voltron_hermes_adapter::HermesEngine>> =
+        if let Some(path) = &cli.hermes_known_issues {
+            let engine = Arc::new(voltron_hermes_adapter::HermesEngine::with_known_issues(
+                path.clone(),
+            ));
+            tracing::info!("Hermes self-improvement engine enabled — {:?}", path);
+            Some(engine)
+        } else {
+            tracing::info!("Hermes self-improvement engine disabled (no --hermes-known-issues)");
+            None
+        };
+
     // ── Build AgentRuntime ──────────────────────────────────────
     let mut runtime_builder = AgentRuntime::builder()
         .provider(llm_provider)
@@ -271,6 +291,11 @@ async fn main() {
 
     if let Some(verifier) = manifest_verifier {
         runtime_builder = runtime_builder.manifest_verifier(verifier);
+    }
+
+    #[cfg(feature = "hermes")]
+    if let Some(engine) = hermes_engine {
+        runtime_builder = runtime_builder.hermes_engine(engine);
     }
 
     let runtime = runtime_builder.build();

@@ -9,11 +9,14 @@ description = "Voltron Claw — Rust-native composite agent"
 voltron-core = { path = "crates/voltron-core" }
 voltron-providers = { path = "crates/voltron-providers" }
 voltron-memory = { path = "crates/voltron-memory" }
+voltron-memory-tree = { path = "crates/voltron-memory-tree", optional = true }
 voltron-skills = { path = "crates/voltron-skills" }
 voltron-channels = { path = "crates/voltron-channels" }
 voltron-audit = { path = "crates/voltron-audit" }
 voltron-runtime = { path = "crates/voltron-runtime" }
+voltron-ractor = { path = "crates/voltron-ractor", optional = true }
 voltron-ironclaw-adapter = { path = "crates/voltron-ironclaw-adapter" }
+voltron-hermes-adapter = { path = "crates/voltron-hermes-adapter", optional = true }
 
 clap.workspace = true
 toml.workspace = true
@@ -29,12 +32,15 @@ members = [
     "crates/voltron-core",
     "crates/voltron-providers",
     "crates/voltron-memory",
+    "crates/voltron-memory-tree",
     "crates/voltron-skills",
     "crates/voltron-channels",
     "crates/voltron-audit",
     "crates/voltron-runtime",
+    "crates/voltron-ractor",
     "crates/voltron-moltis-adapter",
     "crates/voltron-ironclaw-adapter",
+    "crates/voltron-hermes-adapter",
 ]
 resolver = "2"
 
@@ -106,6 +112,24 @@ semver = { version = "1", features = ["serde"] }
 
 # Binary serialisation helpers
 serde_bytes = "0.11"
+
+# YAML frontmatter parsing (skills, memory tree manifests)
+serde_yaml = "0.9"
+
+# Ractor-based actor model for multi-agent orchestration
+ractor = "0.14"
+
+# regex for validation
+regex = "1"
+
+# temp directories for tests
+tempfile = "3"
+
+[features]
+default = []
+hermes = ["voltron-hermes-adapter", "voltron-runtime/hermes"]
+memory-tree = ["voltron-memory-tree"]
+ractor = ["voltron-ractor"]
 
 [profile.release]
 opt-level = 3

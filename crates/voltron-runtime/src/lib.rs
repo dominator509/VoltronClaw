@@ -52,6 +52,8 @@
 //! ```
 
 use std::sync::Arc;
+#[cfg(feature = "hermes")]
+use voltron_hermes_adapter::{HermesEngine, HermesConfig};
 use tracing::{debug, error, info, warn};
 
 use voltron_core::{
@@ -120,6 +122,13 @@ pub struct AgentRuntime {
     /// `verify_manifest()`. Unsigned or invalid manifests cause the
     /// tool to be rejected with a [`VerificationError`].
     manifest_verifier: Option<Arc<dyn ManifestVerifier>>,
+    /// Optional Hermes self-improvement engine.
+    ///
+    /// When set, every audit entry is also forwarded to the Hermes
+    /// ring buffer, and drift evaluation is performed after each
+    /// `process_message` cycle.
+    #[cfg(feature = "hermes")]
+    hermes_engine: Option<Arc<HermesEngine>>,
 }
 
 impl AgentRuntime {
@@ -314,6 +323,21 @@ impl AgentRuntime {
             }
         }
 
+        // ── Hermes drift evaluation ───────────────────────────
+        #[cfg(feature = "hermes")]
+        if let Some(engine) = &self.hermes_engine {
+            if let Some(snapshot) = engine.evaluate_drift() {
+                if snapshot.anomalous {
+                    warn!(
+                        turn_id = %turn_id,
+                        window = snapshot.window_index,
+                        error_rate = snapshot.error_rate,
+                        "Hermes drift anomaly detected"
+                    );
+                }
+            }
+        }
+
         // Audit: turn end
         self.log_audit(
             &turn_id,
@@ -485,6 +509,8 @@ pub struct AgentRuntimeBuilder {
     audit: Option<Arc<dyn AuditSink>>,
     config: Option<AgentConfig>,
     manifest_verifier: Option<Arc<dyn ManifestVerifier>>,
+    #[cfg(feature = "hermes")]
+    hermes_engine: Option<Arc<HermesEngine>>,
 }
 
 macro_rules! builder_setter {
@@ -530,20 +556,39 @@ impl AgentRuntimeBuilder {
         "Set the optional IronClaw capability-manifest verifier."
     );
 
+    /// Set the optional Hermes self-improvement engine.
+    #[cfg(feature = "hermes")]
+    pub fn hermes_engine(mut self, engine: Arc<HermesEngine>) -> Self {
+        self.hermes_engine = Some(engine);
+        self
+    }
+
     /// Build the [`AgentRuntime`].
     ///
     /// # Panics
     ///
     /// Panics if any required component was not set.
     pub fn build(self) -> AgentRuntime {
+        #[cfg(feature = "hermes")]
+        let audit: Arc<dyn AuditSink> = {
+            let inner = self.audit.expect("audit is required");
+            // HermesEngine no longer wraps the audit sink — pass through directly
+            inner
+        };
+
+        #[cfg(not(feature = "hermes"))]
+        let audit = self.audit.expect("audit is required");
+
         AgentRuntime {
             provider: self.provider.expect("provider is required"),
             memory: self.memory.expect("memory is required"),
             skills: self.skills.expect("skills is required"),
             channel: self.channel.expect("channel is required"),
-            audit: self.audit.expect("audit is required"),
+            audit,
             config: self.config.unwrap_or_default(),
             manifest_verifier: self.manifest_verifier,
+            #[cfg(feature = "hermes")]
+            hermes_engine: self.hermes_engine,
         }
     }
 }

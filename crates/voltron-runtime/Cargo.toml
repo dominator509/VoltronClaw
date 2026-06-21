@@ -11,6 +11,7 @@ voltron-memory = { path = "../voltron-memory" }
 voltron-skills = { path = "../voltron-skills" }
 voltron-channels = { path = "../voltron-channels" }
 voltron-audit = { path = "../voltron-audit" }
+voltron-hermes-adapter = { path = "../voltron-hermes-adapter", optional = true }
 tokio.workspace = true
 tokio-stream.workspace = true
 serde.workspace = true
@@ -21,3 +22,7 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+
+[features]
+default = []
+hermes = ["voltron-hermes-adapter"]

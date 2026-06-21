@@ -1,0 +1,22 @@
+[package]
+name = "voltron-ractor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Ractor-based actor model for multi-agent orchestration in Voltron Claw"
+
+[dependencies]
+voltron-core = { path = "../voltron-core" }
+voltron-memory = { path = "../voltron-memory" }
+
+ractor = { workspace = true, features = ["async-trait"] }
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+uuid.workspace = true
+chrono.workspace = true

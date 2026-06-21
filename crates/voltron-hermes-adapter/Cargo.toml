@@ -1,0 +1,21 @@
+[package]
+name = "voltron-hermes-adapter"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Hermes self-improving skill loop — NousResearch/hermes-agent port (Python → Rust)"
+
+[dependencies]
+voltron-core = { path = "../voltron-core" }
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml = "0.9"
+thiserror.workspace = true
+regex = "1"
+
+[dev-dependencies]
+tempfile = "3"
+
+[features]
+default = []
+skill-guard = []
