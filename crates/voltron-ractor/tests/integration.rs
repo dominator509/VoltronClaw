@@ -11,14 +11,10 @@ use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use voltron_core::{
-    LLMProvider, LLMResponse, MemoryStore, MemoryRecord, Message, SkillExecutor,
-    SkillManifest, SkillResult, VoltronError,
+    LLMProvider, LLMResponse, MemoryRecord, MemoryStore, Message, SkillExecutor, SkillManifest,
+    SkillResult, VoltronError,
 };
-use voltron_ractor::{
-    actor::AgentConfig,
-    handle::ActorAgentHandle,
-    runtime::ActorRuntime,
-};
+use voltron_ractor::{actor::AgentConfig, handle::ActorAgentHandle, runtime::ActorRuntime};
 
 // ── Mock LLM Provider ─────────────────────────────────────────────
 
@@ -74,7 +70,10 @@ impl MockMemory {
 #[async_trait]
 impl MemoryStore for MockMemory {
     async fn put(&self, record: MemoryRecord) -> Result<(), VoltronError> {
-        self.records.lock().unwrap().insert(record.id.clone(), record);
+        self.records
+            .lock()
+            .unwrap()
+            .insert(record.id.clone(), record);
         Ok(())
     }
 
@@ -145,14 +144,9 @@ async fn test_spawn_and_process_message() {
     let memory = Arc::new(MockMemory::new());
     let skills = Arc::new(MockSkills);
 
-    let handle = ActorAgentHandle::spawn(
-        test_config("agent-a"),
-        llm.clone(),
-        memory,
-        skills,
-    )
-    .await
-    .expect("spawn should succeed");
+    let handle = ActorAgentHandle::spawn(test_config("agent-a"), llm.clone(), memory, skills)
+        .await
+        .expect("spawn should succeed");
 
     assert_eq!(handle.agent_id(), "agent-a");
 
@@ -172,14 +166,9 @@ async fn test_message_persisted_to_memory() {
     let memory = Arc::new(MockMemory::new());
     let skills = Arc::new(MockSkills);
 
-    let handle = ActorAgentHandle::spawn(
-        test_config("agent-b"),
-        llm,
-        memory.clone(),
-        skills,
-    )
-    .await
-    .expect("spawn should succeed");
+    let handle = ActorAgentHandle::spawn(test_config("agent-b"), llm, memory.clone(), skills)
+        .await
+        .expect("spawn should succeed");
 
     handle
         .process_message(Message::user("Store this"))
@@ -201,20 +190,17 @@ async fn test_shutdown_rejects_new_messages() {
     let memory = Arc::new(MockMemory::new());
     let skills = Arc::new(MockSkills);
 
-    let handle = ActorAgentHandle::spawn(
-        test_config("agent-c"),
-        llm,
-        memory,
-        skills,
-    )
-    .await
-    .expect("spawn should succeed");
+    let handle = ActorAgentHandle::spawn(test_config("agent-c"), llm, memory, skills)
+        .await
+        .expect("spawn should succeed");
 
     // Shutdown
     handle.shutdown().await.expect("shutdown should succeed");
 
     // Subsequent messages should be rejected
-    let result = handle.process_message(Message::user("after shutdown")).await;
+    let result = handle
+        .process_message(Message::user("after shutdown"))
+        .await;
     assert!(result.is_err(), "should reject message after shutdown");
 }
 
@@ -334,9 +320,7 @@ async fn test_publish_falls_back_to_default_agent() {
     runtime.set_default_agent("fallback-agent");
 
     // Publish to a topic with no subscribers
-    let results = runtime
-        .publish("unused-topic", Message::user("hi"))
-        .await;
+    let results = runtime.publish("unused-topic", Message::user("hi")).await;
 
     assert_eq!(results.len(), 1);
     assert!(results.contains_key("fallback-agent"));
@@ -382,9 +366,7 @@ async fn test_reload_history_from_memory() {
 async fn test_runtime_send_to_nonexistent_agent() {
     let runtime = ActorRuntime::new();
 
-    let result = runtime
-        .send_to("ghost", Message::user("hello"))
-        .await;
+    let result = runtime.send_to("ghost", Message::user("hello")).await;
 
     assert!(result.is_err(), "should error for nonexistent agent");
 }
@@ -397,7 +379,10 @@ async fn test_runtime_publish_no_subscribers_no_default() {
         .publish("orphan-topic", Message::user("anyone?"))
         .await;
 
-    assert!(results.is_empty(), "should be empty with no subscribers and no default");
+    assert!(
+        results.is_empty(),
+        "should be empty with no subscribers and no default"
+    );
 }
 
 #[tokio::test]
@@ -425,14 +410,10 @@ async fn test_multiple_topics_single_agent() {
         .expect("register");
 
     // Both topics should route to the same agent
-    let results_a = runtime
-        .publish("topic-a", Message::user("from a"))
-        .await;
+    let results_a = runtime.publish("topic-a", Message::user("from a")).await;
     assert_eq!(results_a.len(), 1);
 
-    let results_b = runtime
-        .publish("topic-b", Message::user("from b"))
-        .await;
+    let results_b = runtime.publish("topic-b", Message::user("from b")).await;
     assert_eq!(results_b.len(), 1);
 }
 

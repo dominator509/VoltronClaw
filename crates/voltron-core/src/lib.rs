@@ -23,6 +23,4 @@ pub use types::{
     AuditEntry, LLMResponse, MemoryRecord, Message, SkillManifest, SkillResult, ToolCall,
     ToolDefinition,
 };
-pub use verification::{
-    CapabilityManifest, ManifestVerifier, SignedManifest, VerificationError,
-};
+pub use verification::{CapabilityManifest, ManifestVerifier, SignedManifest, VerificationError};

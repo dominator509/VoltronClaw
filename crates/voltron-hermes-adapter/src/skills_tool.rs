@@ -102,10 +102,8 @@ impl SkillsTool for DiskSkillsTool {
     fn skill_view(&self, name: &str, base: &Path, file: Option<&str>) -> SkillViewResult {
         match file {
             Some(relative_path) => {
-                let content =
-                    read_skill_file(name, base, relative_path).unwrap_or_else(|e| {
-                        format!("Error reading file: {e}")
-                    });
+                let content = read_skill_file(name, base, relative_path)
+                    .unwrap_or_else(|e| format!("Error reading file: {e}"));
                 SkillViewResult {
                     skill_name: name.to_string(),
                     file: Some(relative_path.to_string()),
@@ -113,9 +111,8 @@ impl SkillsTool for DiskSkillsTool {
                 }
             }
             None => {
-                let content = read_skill_body(name, base).unwrap_or_else(|e| {
-                    format!("Error reading skill: {e}")
-                });
+                let content = read_skill_body(name, base)
+                    .unwrap_or_else(|e| format!("Error reading skill: {e}"));
                 SkillViewResult {
                     skill_name: name.to_string(),
                     file: None,
@@ -196,7 +193,11 @@ mod tests {
             "---\nname: skill-b\ndescription: Second skill\n---\n\n# Skill B\nBody for B",
         )
         .unwrap();
-        std::fs::write(b_dir.join("references").join("guide.md"), "# Reference Guide").unwrap();
+        std::fs::write(
+            b_dir.join("references").join("guide.md"),
+            "# Reference Guide",
+        )
+        .unwrap();
 
         // No-SKILL.md dir (should be skipped)
         let empty_dir = skills_dir.join("no-skill");

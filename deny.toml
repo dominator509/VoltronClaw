@@ -15,9 +15,16 @@ deny = []
 
 [advisories]
 ignore = [
-    "RUSTSEC-2024-0388",  # derivative (transitive via keyring → zbus)
-    "RUSTSEC-2024-0384",  # instant (transitive via keyring → futures-lite)
     "RUSTSEC-2025-0134",  # rustls-pemfile (transitive via rig-core → reqwest)
+    # Accepted risks below: each has no applicable fixed release in this
+    # dependency graph (blocked by third-party exact pins or no patch exists).
+    # The durable fix is getting klodi-moltis to relax its exact version pins
+    # (or replacing it); see PR description.
+    "RUSTSEC-2026-0258",  # h2 0.3.27 (via rig-core 0.7 → reqwest 0.11); low-severity DoS, no patched 0.3.x release — fix needs reqwest 0.11→0.12 migration
+    "RUSTSEC-2025-0055",  # tracing-subscriber 0.3.19; fix ≥0.3.20 blocked by klodi-moltis pinning =0.3.19
+    "RUSTSEC-2026-0190",  # anyhow 1.0.95, unsound Error::downcast_mut; blocked by klodi-moltis pinning =1.0.95
+    "RUSTSEC-2026-0097",  # rand 0.8.5, unsound with custom logger; blocked by klodi-moltis pinning =0.8.5
+    "RUSTSEC-2025-0023",  # tokio 1.43.0, unsound broadcast channel; blocked by klodi-moltis pinning =1.43.0
 ]
 
 [sources]

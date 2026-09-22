@@ -127,7 +127,8 @@ impl TreeStore for InMemoryTreeStore {
 
     async fn put_buffer(&mut self, buffer: &Buffer) -> Result<()> {
         // Replace existing buffer for same tree+level, or insert new
-        self.buffers.retain(|b| !(b.tree_id == buffer.tree_id && b.level == buffer.level));
+        self.buffers
+            .retain(|b| !(b.tree_id == buffer.tree_id && b.level == buffer.level));
         self.buffers.push(buffer.clone());
         Ok(())
     }

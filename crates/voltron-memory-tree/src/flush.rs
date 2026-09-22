@@ -88,20 +88,13 @@ pub async fn flush_stale_buffers<S: TreeStore>(
             id: sentinel_id,
             content: "(time-based flush sentinel)".to_string(),
             // Use remaining token budget to trigger seal
-            token_count: crate::types::INPUT_TOKEN_BUDGET
-                .saturating_sub(buffer.token_sum),
+            token_count: crate::types::INPUT_TOKEN_BUDGET.saturating_sub(buffer.token_sum),
             timestamp: now,
         };
 
-        let result = append_leaf(
-            store,
-            summarizer,
-            &mut tree,
-            sentinel,
-            &strategy,
-        )
-        .await
-        .context("flush append_leaf failed")?;
+        let result = append_leaf(store, summarizer, &mut tree, sentinel, &strategy)
+            .await
+            .context("flush append_leaf failed")?;
 
         new_summaries.extend(result.new_summaries);
 
@@ -182,7 +175,10 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(!results.is_empty(), "should have created a summary from stale buffer");
+        assert!(
+            !results.is_empty(),
+            "should have created a summary from stale buffer"
+        );
     }
 
     #[tokio::test]

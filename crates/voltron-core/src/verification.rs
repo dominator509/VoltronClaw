@@ -131,7 +131,10 @@ pub trait ManifestVerifier: Send + Sync {
     /// The default implementation returns [`VerificationError::InvalidSignature`]
     /// — implementors should override this to perform the lookup from their
     /// internal registry.
-    fn verify_skill_by_name(&self, _skill_name: &str) -> Result<CapabilityManifest, VerificationError> {
+    fn verify_skill_by_name(
+        &self,
+        _skill_name: &str,
+    ) -> Result<CapabilityManifest, VerificationError> {
         Err(VerificationError::InvalidSignature {
             skill_name: _skill_name.to_string(),
         })

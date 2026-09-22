@@ -10,8 +10,7 @@
 //! scanning, but adds atomic writes, pin protection, and security scanning.
 
 use crate::skill_storage::{
-    validate_frontmatter, validate_skill_name, SkillsDir,
-    ALLOWED_SUBDIRS, MAX_SKILL_CONTENT_CHARS,
+    validate_frontmatter, validate_skill_name, SkillsDir, ALLOWED_SUBDIRS, MAX_SKILL_CONTENT_CHARS,
 };
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -199,9 +198,7 @@ impl DiskSkillManager {
 
     /// Pin a skill, protecting it from deletion.
     pub fn pin(&self, name: &str) -> Result<(), SkillManagerError> {
-        validate_skill_name(name).map_err(|e| {
-            SkillManagerError::InvalidName(e.to_string())
-        })?;
+        validate_skill_name(name).map_err(|e| SkillManagerError::InvalidName(e.to_string()))?;
 
         let mut pins = self.pins.lock().unwrap();
         if !pins.contains(&name.to_string()) {
@@ -215,17 +212,14 @@ impl DiskSkillManager {
         }
         let json = serde_json::to_string(&SkillUsage::pinned())
             .map_err(|e| SkillManagerError::IoError(e.to_string()))?;
-        atomic_write(&pin_path, &json)
-            .map_err(|e| SkillManagerError::IoError(e.to_string()))?;
+        atomic_write(&pin_path, &json).map_err(|e| SkillManagerError::IoError(e.to_string()))?;
 
         Ok(())
     }
 
     /// Unpin a skill, allowing it to be deleted.
     pub fn unpin(&self, name: &str) -> Result<(), SkillManagerError> {
-        validate_skill_name(name).map_err(|e| {
-            SkillManagerError::InvalidName(e.to_string())
-        })?;
+        validate_skill_name(name).map_err(|e| SkillManagerError::InvalidName(e.to_string()))?;
 
         let mut pins = self.pins.lock().unwrap();
         pins.retain(|p| p != name);
@@ -498,7 +492,11 @@ impl SkillManager for DiskSkillManager {
             skill_name: name.to_string(),
             action: "patch".into(),
             path: Some(file_path),
-            message: format!("Patched '{}' in skill '{}'", file.unwrap_or("SKILL.md"), name),
+            message: format!(
+                "Patched '{}' in skill '{}'",
+                file.unwrap_or("SKILL.md"),
+                name
+            ),
         })
     }
 
@@ -514,8 +512,7 @@ impl SkillManager for DiskSkillManager {
         let path = self.resolve_delete_skill(name)?;
 
         // Remove the directory tree
-        std::fs::remove_dir_all(&path)
-            .map_err(|e| SkillManagerError::IoError(e.to_string()))?;
+        std::fs::remove_dir_all(&path).map_err(|e| SkillManagerError::IoError(e.to_string()))?;
 
         // Clean up empty parent category directories
         if let Some(parent) = path.parent() {
@@ -548,10 +545,7 @@ impl SkillManager for DiskSkillManager {
         validate_skill_name(name).map_err(|e| SkillManagerError::InvalidName(e.to_string()))?;
 
         // Validate the relative path is in an allowed subdirectory
-        let first_component = relative_path
-            .split(&['/', '\\'])
-            .next()
-            .unwrap_or("");
+        let first_component = relative_path.split(&['/', '\\']).next().unwrap_or("");
 
         if !ALLOWED_SUBDIRS.contains(&first_component) {
             return Err(SkillManagerError::InvalidSubdir(format!(
@@ -594,8 +588,7 @@ impl SkillManager for DiskSkillManager {
         }
 
         // Atomic write
-        atomic_write(&file_path, content)
-            .map_err(|e| SkillManagerError::IoError(e.to_string()))?;
+        atomic_write(&file_path, content).map_err(|e| SkillManagerError::IoError(e.to_string()))?;
 
         Ok(SkillActionResponse {
             success: true,
@@ -621,8 +614,7 @@ impl SkillManager for DiskSkillManager {
             )));
         }
 
-        std::fs::remove_file(&file_path)
-            .map_err(|e| SkillManagerError::IoError(e.to_string()))?;
+        std::fs::remove_file(&file_path).map_err(|e| SkillManagerError::IoError(e.to_string()))?;
 
         // Clean up empty parent directories
         if let Some(parent) = file_path.parent() {
@@ -648,7 +640,10 @@ impl SkillManager for DiskSkillManager {
 /// skill files.
 fn atomic_write(path: &Path, content: &str) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or(Path::new("."));
-    let tmp_path = dir.join(format!(".{}_tmp", path.file_name().unwrap_or_default().to_string_lossy()));
+    let tmp_path = dir.join(format!(
+        ".{}_tmp",
+        path.file_name().unwrap_or_default().to_string_lossy()
+    ));
 
     std::fs::write(&tmp_path, content)?;
     std::fs::rename(&tmp_path, path)?;
@@ -706,7 +701,9 @@ mod tests {
     fn test_create_invalid_name() {
         let (manager, _dir) = make_manager();
         let content = valid_skill_content("invalid", "test");
-        let err = manager.create("INVALID-UPPERCASE", None, &content).unwrap_err();
+        let err = manager
+            .create("INVALID-UPPERCASE", None, &content)
+            .unwrap_err();
         assert!(matches!(err, SkillManagerError::InvalidName(_)));
     }
 
@@ -754,7 +751,9 @@ mod tests {
         let content = "---\nname: patch-test\ndescription: Original desc\n---\n\n# Original\nbody";
         manager.create("patch-test", None, content).unwrap();
 
-        let result = manager.patch("patch-test", None, "Original desc", "Patched desc", false).unwrap();
+        let result = manager
+            .patch("patch-test", None, "Original desc", "Patched desc", false)
+            .unwrap();
         assert!(result.success);
         assert_eq!(result.action, "patch");
     }
@@ -765,7 +764,9 @@ mod tests {
         let content = "---\nname: patch-test\ndescription: Test\n---\n\nBody";
         manager.create("patch-test", None, content).unwrap();
 
-        let err = manager.patch("patch-test", None, "NONEXISTENT", "replacement", false).unwrap_err();
+        let err = manager
+            .patch("patch-test", None, "NONEXISTENT", "replacement", false)
+            .unwrap_err();
         assert!(matches!(err, SkillManagerError::NotFound(_)));
     }
 
@@ -775,7 +776,9 @@ mod tests {
         let content = "---\nname: multi-patch\ndescription: Test\n---\n\nfoo bar foo bar";
         manager.create("multi-patch", None, content).unwrap();
 
-        let result = manager.patch("multi-patch", None, "foo", "baz", true).unwrap();
+        let result = manager
+            .patch("multi-patch", None, "foo", "baz", true)
+            .unwrap();
         assert!(result.success);
 
         let body = read_skill_body("multi-patch", manager.skills_dir().base()).unwrap();
@@ -811,10 +814,14 @@ mod tests {
         let content = valid_skill_content("file-test", "Test writes");
         manager.create("file-test", None, &content).unwrap();
 
-        let result = manager.write_file("file-test", "references/api.md", "# API Docs").unwrap();
+        let result = manager
+            .write_file("file-test", "references/api.md", "# API Docs")
+            .unwrap();
         assert!(result.success);
 
-        let file_path = manager.skills_dir().skill_file_path("file-test", "references/api.md");
+        let file_path = manager
+            .skills_dir()
+            .skill_file_path("file-test", "references/api.md");
         assert!(file_path.exists());
     }
 
@@ -824,7 +831,9 @@ mod tests {
         let content = valid_skill_content("file-test", "Test writes");
         manager.create("file-test", None, &content).unwrap();
 
-        let err = manager.write_file("file-test", "secret/out.txt", "hack").unwrap_err();
+        let err = manager
+            .write_file("file-test", "secret/out.txt", "hack")
+            .unwrap_err();
         assert!(matches!(err, SkillManagerError::InvalidSubdir(_)));
     }
 
@@ -833,12 +842,16 @@ mod tests {
         let (manager, _dir) = make_manager();
         let content = valid_skill_content("rm-test", "Test removal");
         manager.create("rm-test", None, &content).unwrap();
-        manager.write_file("rm-test", "references/api.md", "# API").unwrap();
+        manager
+            .write_file("rm-test", "references/api.md", "# API")
+            .unwrap();
 
         let result = manager.remove_file("rm-test", "references/api.md").unwrap();
         assert!(result.success);
 
-        let file_path = manager.skills_dir().skill_file_path("rm-test", "references/api.md");
+        let file_path = manager
+            .skills_dir()
+            .skill_file_path("rm-test", "references/api.md");
         assert!(!file_path.exists());
     }
 
@@ -848,7 +861,9 @@ mod tests {
         let content = valid_skill_content("rm-test", "Test removal");
         manager.create("rm-test", None, &content).unwrap();
 
-        let err = manager.remove_file("rm-test", "references/nonexistent.md").unwrap_err();
+        let err = manager
+            .remove_file("rm-test", "references/nonexistent.md")
+            .unwrap_err();
         assert!(matches!(err, SkillManagerError::NotFound(_)));
     }
 
@@ -869,10 +884,16 @@ mod tests {
     fn test_create_with_category() {
         let (manager, _dir) = make_manager();
         let content = valid_skill_content("cat-skill", "Categorized skill");
-        let result = manager.create("cat-skill", Some("my-category"), &content).unwrap();
+        let result = manager
+            .create("cat-skill", Some("my-category"), &content)
+            .unwrap();
         assert!(result.success);
 
-        let path = manager.skills_dir().base().join("my-category").join("cat-skill");
+        let path = manager
+            .skills_dir()
+            .base()
+            .join("my-category")
+            .join("cat-skill");
         assert!(path.join("SKILL.md").exists());
     }
 }
