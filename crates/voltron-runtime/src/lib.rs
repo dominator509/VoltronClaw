@@ -52,9 +52,9 @@
 //! ```
 
 use std::sync::Arc;
-#[cfg(feature = "hermes")]
-use voltron_hermes_adapter::{HermesEngine, HermesConfig};
 use tracing::{debug, error, info, warn};
+#[cfg(feature = "hermes")]
+use voltron_hermes_adapter::{HermesConfig, HermesEngine};
 
 use voltron_core::{
     AuditEntry, AuditSink, ChannelAdapter, LLMProvider, ManifestVerifier, MemoryRecord,
@@ -233,7 +233,8 @@ impl AgentRuntime {
                 if let Some(verifier) = &self.manifest_verifier {
                     // If the verifier's lookup returns an error, the skill is not
                     // authorised to execute. Reject it before calling execute().
-                    if let Err(verification_error) = verifier.verify_skill_by_name(&tc.function_name)
+                    if let Err(verification_error) =
+                        verifier.verify_skill_by_name(&tc.function_name)
                     {
                         warn!(
                             turn_id = %turn_id,
@@ -255,7 +256,10 @@ impl AgentRuntime {
                         // Push an error tool result so the LLM knows the tool was rejected
                         messages.push(Message {
                             role: "tool".into(),
-                            content: format!("{{\"error\": \"IronClaw rejected: {}\"}}", verification_error),
+                            content: format!(
+                                "{{\"error\": \"IronClaw rejected: {}\"}}",
+                                verification_error
+                            ),
                             name: Some(tc.function_name.clone()),
                             tool_call_id: Some(tc.id.clone()),
                             tool_calls: vec![],
@@ -851,13 +855,10 @@ mod tests {
         // Read the response
         use tokio::io::AsyncReadExt;
         let mut buf = [0u8; 1024];
-        let n = tokio::time::timeout(
-            std::time::Duration::from_secs(5),
-            read_rx.read(&mut buf),
-        )
-        .await
-        .expect("read timed out")
-        .expect("read failed");
+        let n = tokio::time::timeout(std::time::Duration::from_secs(5), read_rx.read(&mut buf))
+            .await
+            .expect("read timed out")
+            .expect("read failed");
         let output = String::from_utf8_lossy(&buf[..n]);
         assert!(output.contains("Hello from run_loop!"), "got: {output}");
     }

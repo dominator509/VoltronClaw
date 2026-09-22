@@ -37,12 +37,12 @@ use std::collections::BTreeSet;
 use anyhow::{Context, Result};
 use chrono::Utc;
 
+use crate::store::TreeStore;
+use crate::summarize::Summarizer;
 use crate::types::{
     AppendResult, Buffer, LabelStrategy, LeafChunk, SummaryNode, Tree, TreeStatus,
     INPUT_TOKEN_BUDGET, MAX_CASCADE_DEPTH, SUMMARY_FANOUT,
 };
-use crate::store::TreeStore;
-use crate::summarize::Summarizer;
 
 /// Append a leaf chunk to a tree and cascade-seal upward.
 ///
@@ -93,9 +93,7 @@ pub async fn append_leaf<S: TreeStore>(
     // Update L0 buffer
     l0_buffer.item_ids.push(leaf_id.clone());
     l0_buffer.token_sum += leaf_tokens;
-    if l0_buffer.oldest_timestamp.is_none()
-        || leaf_ts < l0_buffer.oldest_timestamp.unwrap()
-    {
+    if l0_buffer.oldest_timestamp.is_none() || leaf_ts < l0_buffer.oldest_timestamp.unwrap() {
         l0_buffer.oldest_timestamp = Some(leaf_ts);
     }
 
@@ -110,10 +108,10 @@ pub async fn append_leaf<S: TreeStore>(
             store,
             summarizer,
             tree,
-            0,                    // level being sealed
+            0, // level being sealed
             child_ids,
             l0_parent,
-            l0_buffer.token_sum,  // pass token sum for content sizing
+            l0_buffer.token_sum, // pass token sum for content sizing
             label_strategy,
         )
         .await?;
@@ -138,7 +136,7 @@ pub async fn append_leaf<S: TreeStore>(
             store,
             summarizer,
             tree,
-            1,                    // start checking at level 1
+            1, // start checking at level 1
             summary.id,
             summary.token_count,
             label_strategy,
@@ -413,9 +411,21 @@ fn extract_keyword_entities(text: &str) -> Vec<String> {
 
     // Domain-specific patterns (extensible)
     let domain_patterns = [
-        "api", "database", "migration", "deployment", "security",
-        "authentication", "authorization", "cache", "queue", "worker",
-        "webhook", "schema", "mutation", "query", "endpoint",
+        "api",
+        "database",
+        "migration",
+        "deployment",
+        "security",
+        "authentication",
+        "authorization",
+        "cache",
+        "queue",
+        "worker",
+        "webhook",
+        "schema",
+        "mutation",
+        "query",
+        "endpoint",
     ];
 
     for pattern in &domain_patterns {
@@ -433,12 +443,37 @@ fn extract_basic_topics(text: &str) -> Vec<String> {
     let lower = text.to_lowercase();
 
     let topic_keywords: &[(&str, &[&str])] = &[
-        ("security", &["vulnerability", "exploit", "csrf", "xss", "injection", "auth"]),
-        ("performance", &["slow", "latency", "bottleneck", "optimize", "cache"]),
-        ("testing", &["test", "assert", "mock", "fixture", "coverage"]),
-        ("infrastructure", &["deploy", "server", "docker", "kubernetes", "config"]),
-        ("data", &["migration", "schema", "model", "database", "query"]),
-        ("api", &["endpoint", "route", "handler", "request", "response"]),
+        (
+            "security",
+            &[
+                "vulnerability",
+                "exploit",
+                "csrf",
+                "xss",
+                "injection",
+                "auth",
+            ],
+        ),
+        (
+            "performance",
+            &["slow", "latency", "bottleneck", "optimize", "cache"],
+        ),
+        (
+            "testing",
+            &["test", "assert", "mock", "fixture", "coverage"],
+        ),
+        (
+            "infrastructure",
+            &["deploy", "server", "docker", "kubernetes", "config"],
+        ),
+        (
+            "data",
+            &["migration", "schema", "model", "database", "query"],
+        ),
+        (
+            "api",
+            &["endpoint", "route", "handler", "request", "response"],
+        ),
     ];
 
     for (topic, keywords) in topic_keywords {
@@ -457,8 +492,8 @@ fn extract_basic_topics(text: &str) -> Vec<String> {
 mod tests {
     use super::*;
     use crate::store::InMemoryTreeStore;
-    use crate::TreeKind;
     use crate::types::{INPUT_TOKEN_BUDGET, SUMMARY_FANOUT};
+    use crate::TreeKind;
 
     struct ConcatMock;
     #[async_trait::async_trait]
@@ -524,7 +559,11 @@ mod tests {
         store.put_tree(&tree).await.unwrap();
 
         // Add a leaf that exceeds the budget
-        let leaf = make_leaf("big-leaf", &"x".repeat(INPUT_TOKEN_BUDGET as usize * 4), INPUT_TOKEN_BUDGET + 1);
+        let leaf = make_leaf(
+            "big-leaf",
+            &"x".repeat(INPUT_TOKEN_BUDGET as usize * 4),
+            INPUT_TOKEN_BUDGET + 1,
+        );
         let result = append_leaf(&mut store, &summarizer, &mut tree, leaf, &strategy)
             .await
             .unwrap();
@@ -572,8 +611,11 @@ mod tests {
         // After SUMMARY_FANOUT(10) L1 nodes accumulate, L1 buffer seals → L2.
         // After 2*SUMMARY_FANOUT(20) leaves: 2 L1→L2 seals = 2 L2 nodes + 20 L1 nodes.
         // 2 L2 nodes do not trigger another cascade (need 10 siblings).
-        assert!(total_summaries > SUMMARY_FANOUT as usize,
-            "should have created L1 + L2 summaries: got {}", total_summaries);
+        assert!(
+            total_summaries > SUMMARY_FANOUT as usize,
+            "should have created L1 + L2 summaries: got {}",
+            total_summaries
+        );
     }
 
     #[tokio::test]
@@ -612,7 +654,10 @@ mod tests {
         }
 
         // Now append each summary id to L1 buffer of the global tree
-        let mut buffer = store.get_buffer(&tree.id, 1).await.unwrap()
+        let mut buffer = store
+            .get_buffer(&tree.id, 1)
+            .await
+            .unwrap()
             .unwrap_or_else(|| Buffer {
                 tree_id: tree.id.clone(),
                 level: 1,

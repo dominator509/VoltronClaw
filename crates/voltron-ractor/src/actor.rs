@@ -93,12 +93,9 @@ impl AgentActor {
             skills,
         };
 
-        let (actor_ref, _handle) = <AgentActor as Actor>::spawn(
-            Some(format!("agent-{}", agent_id)),
-            AgentActor,
-            args,
-        )
-        .await?;
+        let (actor_ref, _handle) =
+            <AgentActor as Actor>::spawn(Some(format!("agent-{}", agent_id)), AgentActor, args)
+                .await?;
 
         info!(
             agent_id = %agent_id,
@@ -141,10 +138,7 @@ impl AgentActor {
         let record = MemoryRecord {
             id: uuid::Uuid::new_v4().to_string(),
             content: msg.content.clone(),
-            tags: vec![
-                format!("agent:{}", agent_id),
-                format!("role:{}", msg.role),
-            ],
+            tags: vec![format!("agent:{}", agent_id), format!("role:{}", msg.role)],
             created_at: chrono::Utc::now().to_rfc3339(),
             updated_at: chrono::Utc::now().to_rfc3339(),
             metadata: HashMap::new(),
@@ -236,12 +230,8 @@ impl Actor for AgentActor {
                 );
 
                 // Record incoming message
-                if let Err(e) = Self::record_message(
-                    &state.memory,
-                    &state.config.agent_id,
-                    &message,
-                )
-                .await
+                if let Err(e) =
+                    Self::record_message(&state.memory, &state.config.agent_id, &message).await
                 {
                     warn!("Failed to record message: {}", e);
                 }
@@ -261,12 +251,9 @@ impl Actor for AgentActor {
 
                 // Record assistant response
                 let assistant_msg = Self::assistant_msg(&response.content);
-                if let Err(e) = Self::record_message(
-                    &state.memory,
-                    &state.config.agent_id,
-                    &assistant_msg,
-                )
-                .await
+                if let Err(e) =
+                    Self::record_message(&state.memory, &state.config.agent_id, &assistant_msg)
+                        .await
                 {
                     warn!("Failed to record response: {}", e);
                 }

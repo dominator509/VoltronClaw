@@ -35,12 +35,12 @@
 //! - Label strategies: extract, union, or empty per tree kind
 //! - Thread-safe cascade with depth safety cap
 
-pub mod types;
+pub mod flush;
+pub mod seal;
 pub mod store;
 pub mod summarize;
-pub mod seal;
-pub mod flush;
 pub mod tree;
+pub mod types;
 
 // Re-export core types
 pub use types::{

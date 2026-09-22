@@ -246,10 +246,7 @@ impl SkillGuard for DefaultSkillGuard {
             .findings
             .iter()
             .any(|f| f.severity == Severity::Critical);
-        let has_high = result
-            .findings
-            .iter()
-            .any(|f| f.severity == Severity::High);
+        let has_high = result.findings.iter().any(|f| f.severity == Severity::High);
 
         if has_critical {
             return (
@@ -279,7 +276,10 @@ impl SkillGuard for DefaultSkillGuard {
             );
         }
 
-        (None, "Low-to-medium severity patterns detected. Review required.".into())
+        (
+            None,
+            "Low-to-medium severity patterns detected. Review required.".into(),
+        )
     }
 
     fn format_scan_report(&self, result: &ScanResult) -> String {
@@ -294,8 +294,7 @@ impl SkillGuard for DefaultSkillGuard {
         report.push_str(&format!("   Files scanned: {}\n", result.file_count));
         report.push_str(&format!("   Findings: {}\n\n", result.findings.len()));
 
-        let mut by_severity: Vec<(usize, &Finding)> =
-            result.findings.iter().enumerate().collect();
+        let mut by_severity: Vec<(usize, &Finding)> = result.findings.iter().enumerate().collect();
         by_severity.sort_by_key(|(_idx, f)| match f.severity {
             Severity::Critical => 0,
             Severity::High => 1,
@@ -359,7 +358,10 @@ mod tests {
         create_test_skill(
             dir.path(),
             &[
-                ("SKILL.md", "---\nname: clean\ndescription: Clean\n---\n\n# Hello"),
+                (
+                    "SKILL.md",
+                    "---\nname: clean\ndescription: Clean\n---\n\n# Hello",
+                ),
                 ("references/guide.md", "# Safe documentation"),
             ],
         );

@@ -212,7 +212,11 @@ pub fn read_skill_body(name: &str, base: &Path) -> Result<String, SkillStorageEr
 /// Validates that `relative_path` does not escape the skill directory
 /// (path traversal protection) and that the file is within one of the
 /// `ALLOWED_SUBDIRS`.
-pub fn read_skill_file(name: &str, base: &Path, relative_path: &str) -> Result<String, SkillStorageError> {
+pub fn read_skill_file(
+    name: &str,
+    base: &Path,
+    relative_path: &str,
+) -> Result<String, SkillStorageError> {
     validate_skill_name(name)?;
 
     let path = validate_supporting_path(name, base, relative_path)?;
@@ -224,8 +228,8 @@ pub fn read_skill_file(name: &str, base: &Path, relative_path: &str) -> Result<S
         )));
     }
 
-    let content = std::fs::read_to_string(&path)
-        .map_err(|e| SkillStorageError::IoError(e.to_string()))?;
+    let content =
+        std::fs::read_to_string(&path).map_err(|e| SkillStorageError::IoError(e.to_string()))?;
 
     if content.len() > MAX_SKILL_FILE_BYTES {
         return Err(SkillStorageError::TooLarge(format!(
@@ -244,7 +248,9 @@ pub fn read_skill_file(name: &str, base: &Path, relative_path: &str) -> Result<S
 /// Validate a skill name against the allowed pattern.
 pub fn validate_skill_name(name: &str) -> Result<(), SkillStorageError> {
     if name.is_empty() {
-        return Err(SkillStorageError::InvalidName("Name must not be empty".into()));
+        return Err(SkillStorageError::InvalidName(
+            "Name must not be empty".into(),
+        ));
     }
     if name.len() > MAX_NAME_LENGTH {
         return Err(SkillStorageError::InvalidName(format!(
@@ -335,7 +341,7 @@ fn extract_frontmatter(content: &str) -> Result<&str, SkillStorageError> {
     let end = after_first
         .find("\n---")
         .or_else(|| after_first.find("\r\n---"))
-        .map(|pos| pos)  // end at the newline before closing ---
+        .map(|pos| pos) // end at the newline before closing ---
         .ok_or_else(|| {
             SkillStorageError::FrontmatterParse(
                 "Missing closing '---' frontmatter delimiter".into(),
@@ -377,9 +383,10 @@ fn validate_supporting_path(
         SkillStorageError::PathTraversal(format!("Cannot resolve path: {}", relative_path))
     })?;
 
-    let skill_dir = base.join(name).canonicalize().map_err(|_| {
-        SkillStorageError::NotFound(format!("Skill '{}' not found", name))
-    })?;
+    let skill_dir = base
+        .join(name)
+        .canonicalize()
+        .map_err(|_| SkillStorageError::NotFound(format!("Skill '{}' not found", name)))?;
 
     // Path must be within the skill directory
     if !canonical.starts_with(&skill_dir) {
@@ -616,8 +623,16 @@ description: {desc}
         let dir = tempfile::tempdir().unwrap();
         let skill_dir = dir.path().join("my-skill");
         std::fs::create_dir_all(skill_dir.join("references")).unwrap();
-        std::fs::write(skill_dir.join("SKILL.md"), "---\nname: my-skill\ndescription: Test\n---\n\nBody").unwrap();
-        std::fs::write(skill_dir.join("references").join("api.md"), "# API Reference").unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: my-skill\ndescription: Test\n---\n\nBody",
+        )
+        .unwrap();
+        std::fs::write(
+            skill_dir.join("references").join("api.md"),
+            "# API Reference",
+        )
+        .unwrap();
 
         let content = read_skill_file("my-skill", dir.path(), "references/api.md").unwrap();
         assert_eq!(content, "# API Reference");
@@ -628,7 +643,11 @@ description: {desc}
         let dir = tempfile::tempdir().unwrap();
         let skill_dir = dir.path().join("my-skill");
         std::fs::create_dir_all(&skill_dir).unwrap();
-        std::fs::write(skill_dir.join("SKILL.md"), "---\nname: my-skill\ndescription: Test\n---").unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: my-skill\ndescription: Test\n---",
+        )
+        .unwrap();
 
         let err = read_skill_file("my-skill", dir.path(), "secret/file.txt").unwrap_err();
         // Since 'secret/' dir doesn't exist, canonicalization fails first
@@ -648,13 +667,20 @@ description: {desc}
         let dir = tempfile::tempdir().unwrap();
         let skill_dir = dir.path().join("my-skill");
         std::fs::create_dir_all(&skill_dir).unwrap();
-        std::fs::write(skill_dir.join("SKILL.md"), "---\nname: my-skill\ndescription: Test\n---").unwrap();
+        std::fs::write(
+            skill_dir.join("SKILL.md"),
+            "---\nname: my-skill\ndescription: Test\n---",
+        )
+        .unwrap();
 
         // Escape via ../
         let err = read_skill_file("my-skill", dir.path(), "../outside.txt").unwrap_err();
         // The path may fail at canonicalization stage or traversal check
         assert!(
-            matches!(&err, SkillStorageError::PathTraversal(_) | SkillStorageError::NotFound(_)),
+            matches!(
+                &err,
+                SkillStorageError::PathTraversal(_) | SkillStorageError::NotFound(_)
+            ),
             "Expected PathTraversal or NotFound, got: {err}"
         );
     }

@@ -12,8 +12,12 @@
 //! on each turn so the agent knows what skills are available without
 //! loading full bodies.
 
-use crate::skill_manager::{DiskSkillManager, SkillActionResponse, SkillManager, SkillManagerError};
-use crate::skills_tool::{DiskSkillsTool, SkillRequirements, SkillsListResult, SkillsTool, SkillViewResult};
+use crate::skill_manager::{
+    DiskSkillManager, SkillActionResponse, SkillManager, SkillManagerError,
+};
+use crate::skills_tool::{
+    DiskSkillsTool, SkillRequirements, SkillViewResult, SkillsListResult, SkillsTool,
+};
 use std::path::{Path, PathBuf};
 
 // ── HermesConfig ────────────────────────────────────────────────────
@@ -201,8 +205,7 @@ impl HermesEngine {
 
     /// View the full content of a skill.
     pub fn view_skill(&self, name: &str, file: Option<&str>) -> SkillViewResult {
-        self.skills_tool
-            .skill_view(name, self.skills_dir(), file)
+        self.skills_tool.skill_view(name, self.skills_dir(), file)
     }
 
     /// Check skill requirements against the current environment.
@@ -353,7 +356,9 @@ mod tests {
         let view = engine.view_skill("file-skill", Some("references/api.md"));
         assert_eq!(view.content, "# API Docs");
 
-        engine.remove_skill_file("file-skill", "references/api.md").unwrap();
+        engine
+            .remove_skill_file("file-skill", "references/api.md")
+            .unwrap();
 
         // After removal, viewing should return an error
         let view = engine.view_skill("file-skill", Some("references/api.md"));

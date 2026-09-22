@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use voltron_core::{
-    CapabilityManifest, ManifestVerifier, SignedManifest, VerificationError,
-};
+use voltron_core::{CapabilityManifest, ManifestVerifier, SignedManifest, VerificationError};
 
 // ── ManifestRegistry ───────────────────────────────────────────────
 
@@ -322,7 +320,11 @@ mod tests {
         // Should still pass signature+expiry checks since those don't require registry,
         // but hash check is skipped when no registry entry exists
         let result = verifier.verify_manifest(&signed);
-        assert!(result.is_ok(), "Expected OK (no registry = no hash check), got: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Expected OK (no registry = no hash check), got: {:?}",
+            result.err()
+        );
     }
 
     // ── Test 6: Revoked manifest → Revoked ──────────────────────────
@@ -400,6 +402,10 @@ mod tests {
 
         let verifier = IronclawManifestVerifier::new(registry, revocations);
         let result = verifier.verify_manifest(&signed);
-        assert!(result.is_ok(), "Expected OK after unrevoke, got: {:?}", result.err());
+        assert!(
+            result.is_ok(),
+            "Expected OK after unrevoke, got: {:?}",
+            result.err()
+        );
     }
 }

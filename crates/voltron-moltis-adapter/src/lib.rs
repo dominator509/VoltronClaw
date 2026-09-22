@@ -29,13 +29,13 @@
 
 use async_trait::async_trait;
 use futures::stream::Stream;
-use std::sync::Arc;
 use std::collections::HashMap;
-use tokio::sync::{Mutex, mpsc};
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, info, warn};
 use voltron_core::{
-    AuditEntry, AuditSink, ChannelAdapter, Message, SkillExecutor, SkillManifest,
-    SkillResult, VoltronError,
+    AuditEntry, AuditSink, ChannelAdapter, Message, SkillExecutor, SkillManifest, SkillResult,
+    VoltronError,
 };
 
 // ── Re-exported error wrapper ─────────────────────────────────────
@@ -126,10 +126,7 @@ impl MoltisChannel {
     /// `recv()`.
     ///
     /// If `nats_url` is empty, falls back to memory-only mode.
-    pub async fn connect(
-        agent_id: impl Into<String>,
-        nats_url: impl Into<String>,
-    ) -> Self {
+    pub async fn connect(agent_id: impl Into<String>, nats_url: impl Into<String>) -> Self {
         let agent_id: String = agent_id.into();
         let nats_url: String = nats_url.into();
 
@@ -156,13 +153,7 @@ impl MoltisChannel {
             // klodi_moltis::_natsclient::consumers::subscribe_channels()
             // or similar. For the adapter layer we attempt connection
             // and fall back gracefully if NATS is unavailable.
-            match Self::try_nats_subscribe(
-                &nats_url_clone,
-                &inbox_subject,
-                tx_clone,
-            )
-            .await
-            {
+            match Self::try_nats_subscribe(&nats_url_clone, &inbox_subject, tx_clone).await {
                 Ok(()) => info!(
                     agent_id = %agent_id_clone,
                     "MoltisChannel NATS subscriber running"
@@ -432,11 +423,7 @@ impl MoltisSkillBridge {
     ///
     /// When a mock response is registered, executing the skill
     /// returns the given JSON value instead of dispatching to NATS.
-    pub fn with_mock(
-        mut self,
-        skill_id: impl Into<String>,
-        response: serde_json::Value,
-    ) -> Self {
+    pub fn with_mock(mut self, skill_id: impl Into<String>, response: serde_json::Value) -> Self {
         self.mock_responses.insert(skill_id.into(), response);
         self
     }
@@ -529,8 +516,14 @@ impl SkillExecutor for MoltisSkillBridge {
         match skill_id {
             "moltis_list_create" => {
                 // Validate required fields
-                if !args.get("title").and_then(|v| v.as_str()).map_or(false, |s| !s.is_empty())
-                    || !args.get("description").and_then(|v| v.as_str()).map_or(false, |s| !s.is_empty())
+                if !args
+                    .get("title")
+                    .and_then(|v| v.as_str())
+                    .map_or(false, |s| !s.is_empty())
+                    || !args
+                        .get("description")
+                        .and_then(|v| v.as_str())
+                        .map_or(false, |s| !s.is_empty())
                     || !args.get("price").and_then(|v| v.as_i64()).is_some()
                 {
                     return Err(VoltronError::SkillExecution {
@@ -540,12 +533,16 @@ impl SkillExecutor for MoltisSkillBridge {
                 }
                 Ok(Self::execute_list_create(&args))
             }
-            "moltis_list_search" => {
-                Ok(Self::execute_list_search(&args))
-            }
+            "moltis_list_search" => Ok(Self::execute_list_search(&args)),
             "moltis_offer_respond" => {
-                if !args.get("listing_id").and_then(|v| v.as_str()).map_or(false, |s| !s.is_empty())
-                    || !args.get("offer_id").and_then(|v| v.as_str()).map_or(false, |s| !s.is_empty())
+                if !args
+                    .get("listing_id")
+                    .and_then(|v| v.as_str())
+                    .map_or(false, |s| !s.is_empty())
+                    || !args
+                        .get("offer_id")
+                        .and_then(|v| v.as_str())
+                        .map_or(false, |s| !s.is_empty())
                 {
                     return Err(VoltronError::SkillExecution {
                         skill: skill_id.to_string(),

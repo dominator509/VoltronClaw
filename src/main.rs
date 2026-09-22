@@ -12,7 +12,9 @@ use tracing_subscriber::EnvFilter;
 
 use voltron_audit::{FileAuditSink, InMemoryAuditSink};
 use voltron_channels::CliChannel;
-use voltron_core::{AuditSink, LLMProvider, ManifestVerifier, MemoryStore, SkillExecutor, VoltronError};
+use voltron_core::{
+    AuditSink, LLMProvider, ManifestVerifier, MemoryStore, SkillExecutor, VoltronError,
+};
 use voltron_memory::{InMemoryStore, SqliteStore};
 use voltron_providers::{DeepSeekProvider, OpenAIProvider};
 use voltron_runtime::{AgentConfig, AgentRuntime};
@@ -86,7 +88,9 @@ fn load_ironclaw_manifests(
     dir: &PathBuf,
 ) -> Result<voltron_ironclaw_adapter::IronclawManifestVerifier, Box<dyn std::error::Error>> {
     use voltron_core::SignedManifest;
-    use voltron_ironclaw_adapter::{IronclawManifestVerifier, ManifestRegistry, RevocationRegistry};
+    use voltron_ironclaw_adapter::{
+        IronclawManifestVerifier, ManifestRegistry, RevocationRegistry,
+    };
 
     let manifest_registry = ManifestRegistry::new();
     let revocation_registry = RevocationRegistry::new();
@@ -110,11 +114,7 @@ fn load_ironclaw_manifests(
             // capability manifest available for hash/permission checks
             verifier.register_signed(signed);
 
-            tracing::info!(
-                "Loaded IronClaw manifest: {} (v{})",
-                skill_name,
-                version,
-            );
+            tracing::info!("Loaded IronClaw manifest: {} (v{})", skill_name, version,);
         }
     }
 
@@ -247,10 +247,7 @@ async fn main() {
             match load_ironclaw_manifests(dir) {
                 Ok(verifier) => {
                     let v: Arc<dyn ManifestVerifier> = Arc::new(verifier);
-                    tracing::info!(
-                        "IronClaw manifest verifier enabled — {:?}",
-                        dir
-                    );
+                    tracing::info!("IronClaw manifest verifier enabled — {:?}", dir);
                     Some(v)
                 }
                 Err(e) => {

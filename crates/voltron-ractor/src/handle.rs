@@ -55,8 +55,7 @@ impl ActorAgentHandle {
             })
             .map_err(|e| AgentError::Internal(format!("failed to send task: {}", e)))?;
 
-        rx.await
-            .map_err(|_| AgentError::Cancelled)?
+        rx.await.map_err(|_| AgentError::Cancelled)?
     }
 
     /// Reload the agent's conversation history from memory.
@@ -64,13 +63,10 @@ impl ActorAgentHandle {
         let (tx, rx) = oneshot::channel();
 
         self.actor_ref
-            .cast(AgentTask::Reload {
-                reply_to: tx,
-            })
+            .cast(AgentTask::Reload { reply_to: tx })
             .map_err(|e| AgentError::Internal(format!("failed to send reload: {}", e)))?;
 
-        rx.await
-            .map_err(|_| AgentError::Cancelled)?
+        rx.await.map_err(|_| AgentError::Cancelled)?
     }
 
     /// Initiate graceful shutdown of the agent.
@@ -84,8 +80,7 @@ impl ActorAgentHandle {
             .cast(AgentTask::Shutdown { reply_to: tx })
             .map_err(|e| AgentError::Internal(format!("failed to send shutdown: {}", e)))?;
 
-        rx.await
-            .map_err(|_| AgentError::Cancelled)?
+        rx.await.map_err(|_| AgentError::Cancelled)?
     }
 
     /// Check if the agent actor is still alive.

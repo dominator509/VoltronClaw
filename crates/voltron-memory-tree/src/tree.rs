@@ -100,9 +100,8 @@ impl<S: TreeStore> MemoryTreeEngine<S> {
 
     /// Run time-based flush for stale buffers across all trees.
     pub async fn flush_stale(&mut self, max_age_secs: Option<i64>) -> Result<Vec<SummaryNode>> {
-        let age = chrono::Duration::seconds(
-            max_age_secs.unwrap_or(crate::types::DEFAULT_FLUSH_AGE_SECS),
-        );
+        let age =
+            chrono::Duration::seconds(max_age_secs.unwrap_or(crate::types::DEFAULT_FLUSH_AGE_SECS));
         flush::flush_stale_buffers(&mut self.store, self.summarizer.as_ref(), age).await
     }
 
@@ -202,8 +201,14 @@ mod tests {
         let summarizer = Box::new(ConcatSummarizer::new(" | "));
         let mut engine = MemoryTreeEngine::new(store, summarizer);
 
-        engine.create_tree("alpha", TreeKind::Source, None).await.unwrap();
-        engine.create_tree("beta", TreeKind::Global, None).await.unwrap();
+        engine
+            .create_tree("alpha", TreeKind::Source, None)
+            .await
+            .unwrap();
+        engine
+            .create_tree("beta", TreeKind::Global, None)
+            .await
+            .unwrap();
 
         let ids = engine.list_trees().await.unwrap();
         assert_eq!(ids.len(), 2);
@@ -232,7 +237,8 @@ mod tests {
 
         // Global trees use UnionFromChildren. With no children, summary should have empty labels.
         let content = &"x".repeat(crate::INPUT_TOKEN_BUDGET as usize * 4 + 10);
-        let result = engine.ingest(&tree.id, content, crate::INPUT_TOKEN_BUDGET + 1)
+        let result = engine
+            .ingest(&tree.id, content, crate::INPUT_TOKEN_BUDGET + 1)
             .await
             .unwrap();
 
@@ -256,7 +262,8 @@ mod tests {
             .unwrap();
 
         let content = &"x".repeat(crate::INPUT_TOKEN_BUDGET as usize * 4 + 10);
-        let result = engine.ingest(&tree.id, content, crate::INPUT_TOKEN_BUDGET + 1)
+        let result = engine
+            .ingest(&tree.id, content, crate::INPUT_TOKEN_BUDGET + 1)
             .await
             .unwrap();
 
@@ -283,12 +290,16 @@ mod tests {
 
         // Ingest enough to seal
         let content = &"x".repeat(crate::INPUT_TOKEN_BUDGET as usize * 4 + 10);
-        engine.ingest(&tree.id, content, crate::INPUT_TOKEN_BUDGET + 1)
+        engine
+            .ingest(&tree.id, content, crate::INPUT_TOKEN_BUDGET + 1)
             .await
             .unwrap();
 
         // After seal, root_id should be set to the new L1 summary
         let updated = engine.get_tree(&tree.id).await.unwrap().unwrap();
-        assert!(updated.root_id.is_some(), "root_id should be set after first seal");
+        assert!(
+            updated.root_id.is_some(),
+            "root_id should be set after first seal"
+        );
     }
 }

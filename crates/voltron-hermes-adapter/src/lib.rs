@@ -32,23 +32,19 @@ pub mod skills_tool;
 
 // Re-export key types at crate root
 pub use engine::{HermesConfig, HermesEngine};
-pub use skill_manager::{
-    DiskSkillManager, SkillActionResponse, SkillManager, SkillManagerError,
-};
+pub use skill_manager::{DiskSkillManager, SkillActionResponse, SkillManager, SkillManagerError};
 pub use skill_storage::{
-    platform_matches, read_skill_body, read_skill_file, scan_skills_dir,
-    validate_frontmatter, validate_skill_name, Prerequisites, SkillMeta, SkillsDir,
-    SkillStorageError, ALLOWED_SUBDIRS, MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH,
-    MAX_SKILL_CONTENT_CHARS, MAX_SKILL_FILE_BYTES, VALID_NAME_RE,
+    platform_matches, read_skill_body, read_skill_file, scan_skills_dir, validate_frontmatter,
+    validate_skill_name, Prerequisites, SkillMeta, SkillStorageError, SkillsDir, ALLOWED_SUBDIRS,
+    MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH, MAX_SKILL_CONTENT_CHARS, MAX_SKILL_FILE_BYTES,
+    VALID_NAME_RE,
 };
 pub use skills_tool::{
-    DiskSkillsTool, SkillRequirements, SkillsListResult, SkillsTool, SkillViewResult,
+    DiskSkillsTool, SkillRequirements, SkillViewResult, SkillsListResult, SkillsTool,
 };
 
 #[cfg(feature = "skill-guard")]
-pub use skill_guard::{
-    DefaultSkillGuard, Finding, ScanResult, Severity, SkillGuard,
-};
+pub use skill_guard::{DefaultSkillGuard, Finding, ScanResult, Severity, SkillGuard};
 
 // ── Tests ───────────────────────────────────────────────────────────
 
